@@ -1,0 +1,123 @@
+/* ReusableModal.razor.css — scoped styles.
+   Tokens live on :root in app.css so the catalog, cart and modals share them:
+   --ink:#1b2b3f; --muted:#5b6878; --line:#d9dee5; --surface:#ffffff;
+   --brand:#1f4e8c; --ok:#1e7a46; --warn:#a15c07; --bad:#b42318; */
+
+.am-backdrop {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 1rem;
+    background: rgb(15 23 36 / .48);
+    animation: am-fade 140ms ease-out;
+}
+
+.am-dialog {
+    --accent: var(--brand, #1f4e8c);
+    width: 100%;
+    max-height: calc(100dvh - 2rem);
+    display: flex;
+    flex-direction: column;
+    background: var(--surface, #fff);
+    color: var(--ink, #1b2b3f);
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgb(15 23 36 / .28), 0 2px 6px rgb(15 23 36 / .12);
+    outline: none;
+    animation: am-rise 180ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.am-sm { max-width: 400px; }
+.am-md { max-width: 520px; }
+.am-lg { max-width: 760px; }
+.am-xl { max-width: 1040px; }
+
+.am-success { --accent: var(--ok,   #1e7a46); }
+.am-warning { --accent: var(--warn, #a15c07); }
+.am-danger  { --accent: var(--bad,  #b42318); }
+
+.am-header {
+    display: flex;
+    align-items: center;
+    gap: .75rem;
+    padding: 1.25rem 1.25rem .5rem;
+}
+
+.am-icon {
+    display: grid;
+    place-items: center;
+    flex: none;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    font-size: 1.25rem;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+.am-title {
+    flex: 1;
+    margin: 0;
+    font-size: 1.125rem;
+    font-weight: 650;
+    line-height: 1.3;
+}
+
+.am-close {
+    border: 0;
+    background: none;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 8px;
+    color: var(--muted, #5b6878);
+}
+.am-close:hover { background: #eef1f5; color: var(--ink, #1b2b3f); }
+
+.am-body {
+    padding: .5rem 1.25rem 1rem;
+    overflow-y: auto;          /* long RIS summaries scroll; header/footer stay put */
+    line-height: 1.55;
+}
+
+.am-message { margin: 0 0 .75rem; color: #34445a; }
+.am-input-label { font-weight: 600; margin-top: .25rem; }
+.am-counter { font-size: .8125rem; color: var(--muted, #5b6878); text-align: right; margin-top: .25rem; }
+.am-counter.is-short { color: var(--bad, #b42318); }
+.am-inline-error { margin: .75rem 0 0; font-size: .9375rem; }
+
+.am-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .5rem;
+    padding: .875rem 1.25rem 1.25rem;
+    border-top: 1px solid var(--line, #d9dee5);
+}
+
+.am-btn { min-height: 44px; padding-inline: 1.125rem; border-radius: 10px; font-weight: 600; }
+.am-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.am-btn-primary:hover:not(:disabled) { filter: brightness(.92); color: #fff; }
+.am-btn-primary:disabled { opacity: .55; }
+
+.am-dialog :focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, white); outline-offset: 2px; }
+
+/* Phones: become a bottom sheet — thumb-reachable, feels like a shopping app */
+@media (max-width: 575.98px) {
+    .am-backdrop { place-items: end center; padding: 0; }
+    .am-dialog {
+        max-width: none;
+        max-height: 92dvh;
+        border-radius: 18px 18px 0 0;
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        animation-name: am-sheet;
+    }
+    .am-footer { flex-direction: column-reverse; }
+    .am-btn { width: 100%; }
+}
+
+@keyframes am-fade  { from { opacity: 0; } }
+@keyframes am-rise  { from { opacity: 0; transform: translateY(8px) scale(.985); } }
+@keyframes am-sheet { from { transform: translateY(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+    .am-backdrop, .am-dialog { animation: none; }
+}
