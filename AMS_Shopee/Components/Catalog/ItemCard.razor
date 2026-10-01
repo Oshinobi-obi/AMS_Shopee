@@ -1,0 +1,56 @@
+@* One product card in the catalog grid. Clicking the card opens the detail modal;
+   the button adds 1 unit straight to the cart. *@
+
+<article class="item-card @(Item.Level == StockLevel.OutOfStock ? "is-out" : "")">
+    <button type="button" class="item-open" @onclick="OnOpen" aria-label="@($"View details of {Item.Name}")">
+        <div class="item-media">
+            @if (!string.IsNullOrEmpty(Item.ImagePath))
+            {
+                <img src="@Item.ImagePath" alt="" loading="lazy" />
+            }
+            else
+            {
+                <i class="bi @(Item.CategoryIcon ?? "bi-box-seam")" aria-hidden="true"></i>
+            }
+            <StockBadge Level="Item.Level" Class="item-badge" />
+        </div>
+        <div class="item-body">
+            <h3 class="item-name">@Item.Name</h3>
+            @if (!string.IsNullOrWhiteSpace(Item.Specifications))
+            {
+                <p class="item-specs">@Item.Specifications</p>
+            }
+            <p class="item-price">₱@Item.UnitPrice.ToString("N2")<span> per @Item.Unit</span></p>
+            <p class="item-meta">
+                @(Item.StockOnHand > 0 ? $"{Item.StockOnHand:N0} {Item.Unit} in AMS warehouse" : "None in AMS warehouse")
+            </p>
+            @if (Item.Supplier is not null)
+            {
+                <p class="item-meta">Supplier: @Item.Supplier</p>
+            }
+        </div>
+    </button>
+
+    @if (IsOffice)
+    {
+        <div class="item-quota"><QuotaMeter Balance="Balance" Unit="@Item.Unit" Compact="true" /></div>
+    }
+
+    <div class="item-actions">
+        <button type="button" class="btn btn-primary w-100" @onclick="OnAdd" disabled="@AddDisabled">
+            <i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to cart
+        </button>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public CatalogItem Item { get; set; } = default!;
+    [Parameter] public bool IsOffice { get; set; }
+    [Parameter] public QuotaBalance? Balance { get; set; }
+    [Parameter] public EventCallback OnOpen { get; set; }
+    [Parameter] public EventCallback OnAdd { get; set; }
+
+    // Offices can't add what isn't in their APP-CSE or what they've used up;
+    // the quota meter right above explains why.
+    private bool AddDisabled => IsOffice && (Balance is null || Balance.CanStillAdd == 0);
+}

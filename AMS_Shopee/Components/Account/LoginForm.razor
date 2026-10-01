@@ -1,0 +1,42 @@
+@* Login modal content. A plain HTML form post (not an interactive handler),
+   because only a normal HTTP request can set the auth cookie. *@
+
+<form method="post" action="/account/login" class="login-form">
+    <AntiforgeryToken />
+    <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
+    @if (PendingItemId is not null)
+    {
+        <input type="hidden" name="PendingItemId" value="@PendingItemId" />
+        <input type="hidden" name="PendingQty" value="@PendingQty" />
+    }
+
+    @if (!string.IsNullOrEmpty(Message))
+    {
+        <div class="alert alert-danger py-2" role="alert">@Message</div>
+    }
+    else if (PendingItemId is not null)
+    {
+        <p class="text-secondary">Use your office account. The item goes into your cart right after you log in.</p>
+    }
+
+    <div class="mb-3">
+        <label for="login-username" class="form-label">Office username</label>
+        <input id="login-username" name="Username" class="form-control form-control-lg"
+               autocomplete="username" autocapitalize="off" spellcheck="false" required />
+    </div>
+    <div class="mb-4">
+        <label for="login-password" class="form-label">Password</label>
+        <input id="login-password" name="Password" type="password" class="form-control form-control-lg"
+               autocomplete="current-password" required />
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg w-100">Log in</button>
+    <p class="small text-secondary mt-3 mb-0">Forgot your password? Ask AMS to reset it.</p>
+</form>
+
+@code {
+    [Parameter] public string ReturnUrl { get; set; } = "/";
+    [Parameter] public uint? PendingItemId { get; set; }
+    [Parameter] public int PendingQty { get; set; } = 1;
+    [Parameter] public string? Message { get; set; }
+}

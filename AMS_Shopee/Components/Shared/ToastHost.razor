@@ -1,0 +1,21 @@
+@implements IDisposable
+@inject ToastService Toasts
+
+<div class="toast-stack" aria-live="polite">
+    @foreach (var t in Toasts.Items.ToArray())
+    {
+        <div class="toast-pill toast-@t.Variant.ToString().ToLowerInvariant()" @key="t.Id">
+            <i class="bi @(t.Variant == ModalVariant.Success ? "bi-check-circle-fill" : "bi-info-circle-fill")" aria-hidden="true"></i>
+            <span>@t.Text</span>
+            <button type="button" class="toast-close" aria-label="Dismiss" @onclick="() => Toasts.Dismiss(t.Id)">
+                <i class="bi bi-x" aria-hidden="true"></i>
+            </button>
+        </div>
+    }
+</div>
+
+@code {
+    protected override void OnInitialized() => Toasts.Changed += OnChanged;
+    private void OnChanged() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Toasts.Changed -= OnChanged;
+}

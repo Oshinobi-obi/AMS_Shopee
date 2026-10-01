@@ -1,0 +1,97 @@
+@* Item detail, shown inside a modal: Modal.ShowComponentAsync<ItemDetail>(name, { ["ItemId"] = id }) *@
+@inject CatalogService CatalogSvc
+@inject RequisitionService Requisitions
+@inject AddToCartFlow Flow
+
+@if (_item is null)
+{
+    <p class="text-secondary py-4">@(_notFound ? "This item is no longer in the catalog." : "Loading…")</p>
+}
+else
+{
+    <div class="detail">
+        <div class="detail-media">
+            @if (!string.IsNullOrEmpty(_item.ImagePath))
+            {
+                <img src="@_item.ImagePath" alt="@_item.Name" />
+            }
+            else
+            {
+                <i class="bi @(_item.CategoryIcon ?? "bi-box-seam")" aria-hidden="true"></i>
+            }
+            <StockBadge Level="_item.Level" Class="item-badge" />
+        </div>
+
+        <div class="detail-info">
+            <p class="detail-price">₱@_item.UnitPrice.ToString("N2") <span>per @_item.Unit</span></p>
+
+            <dl class="detail-facts">
+                <dt>Specifications</dt><dd>@(_item.Specifications ?? "None listed")</dd>
+                <dt>Unit of measure</dt><dd>@_item.Unit</dd>
+                <dt>Stock no.</dt><dd>@_item.StockNo</dd>
+                <dt>Supplier</dt><dd>@(_item.Supplier ?? "Not specified")</dd>
+                <dt>AMS warehouse</dt><dd>@_item.StockOnHand.ToString("N0") @_item.Unit</dd>
+            </dl>
+
+            @if (_isOffice)
+            {
+                <QuotaMeter Balance="_balance" Unit="@_item.Unit" />
+            }
+
+            <div class="detail-buy">
+                <div class="qty-stepper" role="group" aria-label="Quantity">
+                    <button type="button" @onclick="() => Step(-1)" disabled="@(_qty <= 1)" aria-label="Decrease quantity">
+                        <i class="bi bi-dash" aria-hidden="true"></i>
+                    </button>
+                    <input type="number" min="1" inputmode="numeric" @bind="_qty" @bind:after="Clamp" aria-label="Quantity" />
+                    <button type="button" @onclick="() => Step(1)" disabled="@(_qty >= MaxQty)" aria-label="Increase quantity">
+                        <i class="bi bi-plus" aria-hidden="true"></i>
+                    </button>
+                </div>
+                <button type="button" class="btn btn-primary btn-lg flex-grow-1" @onclick="AddAsync"
+                        disabled="@(_busy || (_isOffice && (_balance is null || _balance.CanStillAdd == 0)))">
+                    @if (_busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+                    else { <i class="bi bi-cart-plus me-1" aria-hidden="true"></i> }
+                    Add to cart
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public uint ItemId { get; set; }
+    [CascadingParameter] public ModalInstance? Instance { get; set; }
+
+    private CatalogItem? _item;
+    private QuotaBalance? _balance;
+    private bool _isOffice, _busy, _notFound;
+    private int _qty = 1;
+
+    // Offices are capped at what they can still add; others at a sane maximum.
+    private int MaxQty => _isOffice && _balance is not null ? Math.Max(1, _balance.CanStillAdd) : 9999;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _item = await CatalogSvc.GetItemAsync(ItemId);
+        _notFound = _item is null;
+        var user = await Flow.GetUserAsync();
+        _isOffice = user?.IsOffice == true;
+        if (_isOffice) _balance = await Requisitions.GetBalanceAsync(user, ItemId);
+    }
+
+    private void Step(int delta) { _qty += delta; Clamp(); }
+    private void Clamp() => _qty = Math.Clamp(_qty, 1, MaxQty);
+
+    private async Task AddAsync()
+    {
+        if (_item is null) return;
+        _busy = true;
+        try
+        {
+            if (await Flow.AddAsync(_item.ItemId, _item.Name, _item.Unit, _qty))
+                Instance?.Close(ModalResult.Ok());
+        }
+        finally { _busy = false; }
+    }
+}

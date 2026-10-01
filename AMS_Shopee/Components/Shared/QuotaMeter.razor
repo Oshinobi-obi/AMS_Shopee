@@ -1,0 +1,44 @@
+@* Office APP-CSE allocation for one item: total, requested to date, remaining. *@
+
+@if (Balance is null)
+{
+    <div class="quota quota-none">
+        <i class="bi bi-slash-circle" aria-hidden="true"></i>
+        <span>Not in your office's APP-CSE</span>
+    </div>
+}
+else
+{
+    <div class="quota @StateClass @(Compact ? "is-compact" : "")">
+        <dl class="quota-figures">
+            <div><dt>APP-CSE total</dt><dd>@Balance.Allocated</dd></div>
+            <div><dt>Requested to date</dt><dd>@Balance.RequestedToDate</dd></div>
+            <div><dt>Remaining</dt><dd>@Balance.Remaining</dd></div>
+        </dl>
+        <div class="quota-bar" role="progressbar" aria-label="APP-CSE used"
+             aria-valuemin="0" aria-valuemax="@Balance.Allocated" aria-valuenow="@Balance.RequestedToDate">
+            <span style="width:@(UsedPercent)%"></span>
+        </div>
+        @if (Balance.InCart > 0)
+        {
+            <p class="quota-cart"><i class="bi bi-cart-check" aria-hidden="true"></i> @Balance.InCart @Unit already in your cart</p>
+        }
+    </div>
+}
+
+@code {
+    [Parameter] public QuotaBalance? Balance { get; set; }
+    [Parameter] public string Unit { get; set; } = "";
+    [Parameter] public bool Compact { get; set; }
+
+    private int UsedPercent => Balance is null || Balance.Allocated == 0
+        ? 100
+        : Math.Clamp((int)Math.Round(100.0 * Balance.RequestedToDate / Balance.Allocated), 0, 100);
+
+    private string StateClass => Balance switch
+    {
+        { Remaining: 0 } => "is-empty",
+        { } b when b.Remaining * 5 <= b.Allocated => "is-low",   // 20% or less left
+        _ => "",
+    };
+}

@@ -1,0 +1,61 @@
+@implements IDisposable
+@inject CartState Cart
+@inject AddToCartFlow Flow
+
+<header class="topbar">
+    <div class="container-xl topbar-inner">
+        <a class="brand" href="/">
+            <span class="brand-mark" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
+            <span class="brand-text">
+                <strong>AMS Supplies</strong>
+                <small>Asset Management Section</small>
+            </span>
+        </a>
+
+        <nav class="topbar-actions" aria-label="Account">
+            <AuthorizeView>
+                <Authorized>
+                    @if (_user?.IsOffice == true)
+                    {
+                        <a class="topbar-cart" href="/cart" aria-label="@($"Cart, {Cart.Count} items")">
+                            <i class="bi bi-cart3" aria-hidden="true"></i>
+                            <span class="d-none d-sm-inline">Cart</span>
+                            @if (Cart.Count > 0)
+                            {
+                                <span class="cart-count">@Cart.Count</span>
+                            }
+                        </a>
+                    }
+                    <span class="topbar-user">
+                        <i class="bi bi-person-circle" aria-hidden="true"></i>
+                        <span class="d-none d-md-inline">@context.User.Identity?.Name</span>
+                    </span>
+                    <form method="post" action="/account/logout" class="m-0">
+                        <AntiforgeryToken />
+                        <button type="submit" class="btn btn-sm topbar-btn">Log out</button>
+                    </form>
+                </Authorized>
+                <NotAuthorized>
+                    <button type="button" class="btn btn-sm topbar-btn-solid" @onclick="() => Flow.ShowLoginAsync()">
+                        Log in
+                    </button>
+                </NotAuthorized>
+            </AuthorizeView>
+        </nav>
+    </div>
+</header>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+    private CurrentUser? _user;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthState is not null) _user = CurrentUser.From((await AuthState).User);
+        Cart.Changed += OnCartChanged;
+        await Cart.RefreshAsync();
+    }
+
+    private void OnCartChanged() => _ = InvokeAsync(StateHasChanged);
+    public void Dispose() => Cart.Changed -= OnCartChanged;
+}

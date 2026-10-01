@@ -1,0 +1,25 @@
+@* Colour-coded warehouse stock badge: green / yellow / red, always with a word
+   so it still works for colour-blind users and on grayscale printouts. *@
+
+<span class="stock-badge stock-@Level.ToString().ToLowerInvariant() @Class">
+    <i class="bi @Icon" aria-hidden="true"></i>@Label
+</span>
+
+@code {
+    [Parameter, EditorRequired] public StockLevel Level { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string Label => Level switch
+    {
+        StockLevel.InStock  => "In stock",
+        StockLevel.LowStock => "Low stock",
+        _                   => "Out of stock",
+    };
+
+    private string Icon => Level switch
+    {
+        StockLevel.InStock  => "bi-check-circle-fill",
+        StockLevel.LowStock => "bi-exclamation-circle-fill",
+        _                   => "bi-x-circle-fill",
+    };
+}

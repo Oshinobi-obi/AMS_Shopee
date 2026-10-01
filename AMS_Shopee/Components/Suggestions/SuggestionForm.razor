@@ -1,0 +1,84 @@
+@* "Suggest a supply" form, shown inside a modal. Guests can use it too. *@
+@inject CatalogService CatalogSvc
+@inject AddToCartFlow Flow
+@inject ToastService Toast
+
+<p class="text-secondary">Tell AMS what your office needs. Suggestions are reviewed when the next APP-CSE is prepared.</p>
+
+<div class="mb-3">
+    <label class="form-label" for="sg-item">Item name <span class="text-danger" aria-hidden="true">*</span></label>
+    <input id="sg-item" class="form-control" maxlength="200" placeholder="Example: Whiteboard marker, black"
+           @bind="_m.ItemName" @bind:event="oninput" />
+</div>
+<div class="mb-3">
+    <label class="form-label" for="sg-desc">Description or specifications</label>
+    <textarea id="sg-desc" class="form-control" rows="2" maxlength="2000" @bind="_m.Description"></textarea>
+</div>
+<div class="mb-3">
+    <label class="form-label" for="sg-why">Why does your office need it?</label>
+    <textarea id="sg-why" class="form-control" rows="2" maxlength="2000" @bind="_m.Justification"></textarea>
+</div>
+<div class="mb-3">
+    <label class="form-label" for="sg-qty">Estimated quantity per year</label>
+    <input id="sg-qty" type="number" min="1" class="form-control" style="max-width: 12rem" @bind="_m.EstimatedAnnualQty" />
+</div>
+
+@if (_isGuest)
+{
+    <div class="row g-3 mb-3">
+        <div class="col-sm-6">
+            <label class="form-label" for="sg-name">Your name</label>
+            <input id="sg-name" class="form-control" maxlength="150" @bind="_m.SubmitterName" />
+        </div>
+        <div class="col-sm-6">
+            <label class="form-label" for="sg-email">Email (optional)</label>
+            <input id="sg-email" type="email" class="form-control" maxlength="100" @bind="_m.SubmitterEmail" />
+        </div>
+    </div>
+}
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger py-2" role="alert">@_error</div>
+}
+
+<div class="d-flex justify-content-end gap-2 mt-4">
+    <button type="button" class="btn btn-light" @onclick="() => Instance?.Cancel()" disabled="@_busy">Cancel</button>
+    <button type="button" class="btn btn-primary" @onclick="SendAsync"
+            disabled="@(_busy || (_m.ItemName?.Trim().Length ?? 0) < 3)">
+        @if (_busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+        Send suggestion
+    </button>
+</div>
+
+@code {
+    [CascadingParameter] public ModalInstance? Instance { get; set; }
+
+    private readonly SuggestionInput _m = new();
+    private CurrentUser? _user;
+    private bool _isGuest, _busy;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = await Flow.GetUserAsync();
+        _isGuest = _user is null;
+    }
+
+    private async Task SendAsync()
+    {
+        _busy = true; _error = null;
+        try
+        {
+            var result = await CatalogSvc.SubmitSuggestionAsync(_m, _user);
+            if (!result.Ok) { _error = result.Message; return; }
+            Instance?.Close(ModalResult.Ok());
+            Toast.Show(result.Message);
+        }
+        catch (Exception)
+        {
+            _error = "Your suggestion couldn't be sent because of a connection problem. Please try again.";
+        }
+        finally { _busy = false; }
+    }
+}

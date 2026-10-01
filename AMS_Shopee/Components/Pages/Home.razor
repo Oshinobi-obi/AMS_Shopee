@@ -1,7 +1,223 @@
-﻿@page "/"
+@page "/"
+@implements IDisposable
+@inject CatalogService CatalogSvc
+@inject RequisitionService Requisitions
+@inject AddToCartFlow Flow
+@inject CartState Cart
+@inject ModalService Modal
+@inject NavigationManager Nav
+@inject ILogger<Home> Log
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Office supplies | AMS</PageTitle>
 
-<h1>Hello, world!</h1>
+<section class="catalog-hero">
+    <div class="container-xl">
+        <h1 class="catalog-title">What supplies does your office need?</h1>
+        <p class="catalog-lede">@HeroLine</p>
+        <div class="catalog-search" role="search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" aria-label="Search supplies"
+                   placeholder="Search by item, specification or stock number"
+                   value="@_search" @oninput="OnSearchInput" />
+        </div>
+    </div>
+</section>
 
-Welcome to your new app.
+<div class="container-xl catalog-body">
+    <div class="chip-row" aria-label="Categories">
+        <button type="button" class="chip" aria-pressed="@(_categoryId is null ? "true" : "false")" @onclick="() => SelectCategoryAsync(null)">
+            All supplies
+        </button>
+        @foreach (var c in _categories)
+        {
+            <button type="button" class="chip" aria-pressed="@(_categoryId == c.Id ? "true" : "false")" @onclick="() => SelectCategoryAsync(c.Id)">
+                <i class="bi @(c.Icon ?? "bi-box-seam")" aria-hidden="true"></i>@c.Name
+            </button>
+        }
+    </div>
+
+    <div class="catalog-toolbar">
+        <p class="catalog-count" aria-live="polite">@CountText</p>
+        <label class="catalog-filter">
+            <span>Show</span>
+            <select class="form-select form-select-sm" @bind="_stock" @bind:after="ReloadItemsAsync">
+                <option value="@StockFilter.All">All stock levels</option>
+                <option value="@StockFilter.InStock">In stock</option>
+                <option value="@StockFilter.LowStock">Low stock</option>
+                <option value="@StockFilter.OutOfStock">Out of stock</option>
+            </select>
+        </label>
+    </div>
+
+    @if (_loadError)
+    {
+        <div class="empty-state">
+            <i class="bi bi-wifi-off" aria-hidden="true"></i>
+            <h2>The catalog couldn't load</h2>
+            <p>Check that the database server is running, then reload the page.</p>
+        </div>
+    }
+    else if (_items is null)
+    {
+        <div class="catalog-grid" aria-hidden="true">
+            @for (var i = 0; i < 8; i++)
+            {
+                <div class="item-card is-skeleton"><div class="item-media"></div><div class="item-body"><span></span><span></span></div></div>
+            }
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <h2>No supplies match</h2>
+            <p>Try a different word or category. If AMS doesn't carry it yet, you can suggest it.</p>
+            <button type="button" class="btn btn-primary" @onclick="SuggestAsync">Suggest a supply</button>
+        </div>
+    }
+    else
+    {
+        <div class="catalog-grid">
+            @foreach (var item in _items)
+            {
+                <ItemCard @key="item.ItemId"
+                          Item="item"
+                          IsOffice="_isOffice"
+                          Balance="@_balances.GetValueOrDefault(item.ItemId)"
+                          OnOpen="() => OpenDetailAsync(item)"
+                          OnAdd="() => AddOneAsync(item)" />
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    // Set by AccountEndpoints after login: ?login=failed|locked, ?add={itemId}&qty={n}
+    [SupplyParameterFromQuery(Name = "login")] public string? LoginStatus { get; set; }
+    [SupplyParameterFromQuery(Name = "add")]   public int? AddItemId { get; set; }
+    [SupplyParameterFromQuery(Name = "qty")]   public int? AddQty { get; set; }
+
+    private CurrentUser? _user;
+    private bool _isOffice;
+    private string? _officeAcronym;
+
+    private List<CatalogCategory> _categories = [];
+    private List<CatalogItem>? _items;
+    private Dictionary<uint, QuotaBalance> _balances = new();
+    private string _search = "";
+    private uint? _categoryId;
+    private StockFilter _stock = StockFilter.All;
+    private bool _loadError;
+    private CancellationTokenSource? _searchCts;
+
+    private string HeroLine => _isOffice
+        ? $"Requesting for {_officeAcronym}. Each item shows your office's FY {Requisitions.FiscalYear} APP-CSE balance."
+        : _user is not null
+            ? "You're signed in as AMS. Office APP-CSE balances appear when an office account is signed in."
+            : "Browse what the Asset Management Section keeps in stock. Log in with your office account to request items.";
+
+    private string CountText => _items is null
+        ? "Loading supplies…"
+        : $"{_items.Count} {(_items.Count == 1 ? "item" : "items")}"
+          + (string.IsNullOrWhiteSpace(_search) ? "" : $" matching “{_search.Trim()}”");
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = AuthState is null ? null : await AuthState;
+        _user = CurrentUser.From(state?.User);
+        _isOffice = _user?.IsOffice == true;
+        _officeAcronym = state?.User.FindFirst("office_acronym")?.Value;
+        Cart.Changed += OnCartChanged;
+
+        try
+        {
+            _categories = await CatalogSvc.GetCategoriesAsync();
+            await ReloadItemsAsync();
+            await ReloadBalancesAsync();
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Catalog failed to load");
+            _loadError = true;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        // Coming back from a failed login: reopen the modal with the reason.
+        if (LoginStatus is "failed" or "locked")
+        {
+            var status = LoginStatus;
+            ClearQuery();
+            await Flow.ShowLoginAsync(null, 1, status == "locked"
+                ? "Too many failed attempts. Try again in 15 minutes."
+                : "Incorrect username or password.");
+        }
+        // Coming back from a successful login that started with "Add to cart".
+        else if (AddItemId is > 0 && _user is not null)
+        {
+            var itemId = (uint)AddItemId.Value;
+            var qty = Math.Max(1, AddQty ?? 1);
+            ClearQuery();
+            var item = _items?.FirstOrDefault(i => i.ItemId == itemId) ?? await CatalogSvc.GetItemAsync(itemId);
+            if (item is not null)
+                await Flow.AddAsync(item.ItemId, item.Name, item.Unit, qty);
+        }
+    }
+
+    private void ClearQuery() =>
+        Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
+        {
+            ["login"] = null, ["add"] = null, ["qty"] = null,
+        }), replace: true);
+
+    private async Task ReloadItemsAsync() =>
+        _items = await CatalogSvc.GetItemsAsync(_search, _categoryId, _stock);
+
+    private async Task ReloadBalancesAsync() =>
+        _balances = await Requisitions.GetBalancesAsync(_user);
+
+    private async Task OnSearchInput(ChangeEventArgs e)
+    {
+        _search = e.Value?.ToString() ?? "";
+        _searchCts?.Cancel();
+        _searchCts = new CancellationTokenSource();
+        try
+        {
+            await Task.Delay(250, _searchCts.Token);   // wait until typing pauses
+            await ReloadItemsAsync();
+        }
+        catch (TaskCanceledException) { }
+    }
+
+    private async Task SelectCategoryAsync(uint? id)
+    {
+        _categoryId = id;
+        await ReloadItemsAsync();
+    }
+
+    private Task OpenDetailAsync(CatalogItem item) =>
+        Modal.ShowComponentAsync<ItemDetail>(item.Name, new() { ["ItemId"] = item.ItemId }, ModalSize.Large);
+
+    private Task AddOneAsync(CatalogItem item) => Flow.AddAsync(item.ItemId, item.Name, item.Unit, 1);
+
+    private Task SuggestAsync() => Modal.ShowComponentAsync<SuggestionForm>("Suggest an office supply");
+
+    // Any cart change (from a card, the detail modal, or the top bar) refreshes the quota meters.
+    private void OnCartChanged() => _ = InvokeAsync(async () =>
+    {
+        await ReloadBalancesAsync();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Cart.Changed -= OnCartChanged;
+        _searchCts?.Cancel();
+        _searchCts?.Dispose();
+    }
+}

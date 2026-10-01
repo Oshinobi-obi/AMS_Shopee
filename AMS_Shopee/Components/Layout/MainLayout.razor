@@ -1,6 +1,15 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 
-@Body
+<TopBar />
+
+<main class="app-main">
+    @Body
+</main>
+
+<SuggestionFab />
+<ToastHost />
+@* One host for every dialog in the app (confirmations, alerts, login, forms). *@
+<ModalHost />
 
 <div id="blazor-error-ui" data-nosnippet>
     An unhandled error has occurred.

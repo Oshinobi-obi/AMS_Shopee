@@ -1,0 +1,13 @@
+@* Floating "Suggest a supply" button, always visible (placed in MainLayout). *@
+@inject ModalService Modal
+
+<button type="button" class="suggest-fab" @onclick="OpenAsync">
+    <i class="bi bi-lightbulb" aria-hidden="true"></i>
+    <span class="suggest-fab-long">Can't find what you need? <strong>Suggest a supply</strong></span>
+    <span class="suggest-fab-short">Suggest</span>
+</button>
+
+@code {
+    private Task OpenAsync() =>
+        Modal.ShowComponentAsync<SuggestionForm>("Suggest an office supply");
+}

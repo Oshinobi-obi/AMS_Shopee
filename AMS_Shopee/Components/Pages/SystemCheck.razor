@@ -1,0 +1,138 @@
+@page "/system-check"
+@inject IDbContextFactory<AmsDbContext> DbFactory
+@inject ModalService Modal
+
+@* Temporary page to confirm the database, modals and RIS layout are wired up.
+   Delete it once the real catalog page exists. *@
+
+<PageTitle>System check</PageTitle>
+
+<div class="container py-4" style="max-width: 1100px">
+    <h1 class="h3 mb-1">System check</h1>
+    <p class="text-secondary mb-4">Confirms the database, modals and RIS layout are working before we build the catalog.</p>
+
+    <section class="mb-5">
+        <h2 class="h5">Database</h2>
+        @if (_dbError is not null)
+        {
+            <div class="alert alert-danger">@_dbError</div>
+        }
+        else if (_offices is null)
+        {
+            <p class="text-secondary">Connecting…</p>
+        }
+        else
+        {
+            <p>
+                Connected to <strong>ams_stockwatch</strong>.
+                @_offices.Count(o => o.CanRequisition) offices can requisition (expected 22).
+                Migration 001 recorded: <strong>@(_migrated ? "yes" : "no")</strong>.
+            </p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead><tr><th>Acronym</th><th>Office</th><th>Type</th><th>Under</th><th>Can requisition</th></tr></thead>
+                    <tbody>
+                        @foreach (var o in _offices)
+                        {
+                            <tr>
+                                <td>@o.Acronym</td><td>@o.Name</td><td>@o.Type</td>
+                                <td>@o.Parent</td><td>@(o.CanRequisition ? "Yes" : "No")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </section>
+
+    <section class="mb-5">
+        <h2 class="h5">Modals</h2>
+        <div class="d-flex flex-wrap gap-2">
+            <button class="btn btn-outline-danger" @onclick="TryRemove">Remove item</button>
+            <button class="btn btn-outline-danger" @onclick="TryReject">Reject with reason</button>
+            <button class="btn btn-outline-warning" @onclick="TryQuotaError">Exceeds APP-CSE</button>
+            <button class="btn btn-outline-success" @onclick="TryApprove">Approve (slow save)</button>
+        </div>
+        @if (_lastResult is not null)
+        {
+            <p class="mt-2 text-secondary">Last result: @_lastResult</p>
+        }
+    </section>
+
+    <section>
+        <h2 class="h5">RIS preview</h2>
+        <div class="ris-scroll">
+            <RisDocument Model="_sample" IsDraft="true" MinRows="6" />
+        </div>
+    </section>
+</div>
+
+@code {
+    private sealed record OfficeRow(string Acronym, string Name, string Type, string? Parent, bool CanRequisition);
+
+    private List<OfficeRow>? _offices;
+    private bool _migrated;
+    private string? _dbError;
+    private string? _lastResult;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await using var db = await DbFactory.CreateDbContextAsync();
+            _offices = await db.Offices.AsNoTracking()
+                .OrderBy(o => o.SortOrder)
+                .Select(o => new OfficeRow(o.OfficeAcronym, o.OfficeName, o.OfficeType,
+                                           o.ParentOffice != null ? o.ParentOffice.OfficeAcronym : null,
+                                           o.CanRequisition ?? false))
+                .ToListAsync();
+            _migrated = await db.SchemaMigrations.AnyAsync(m => m.Version == "001_requisition_portal");
+        }
+        catch (Exception ex)
+        {
+            _dbError = $"Could not read the database: {ex.GetBaseException().Message}";
+        }
+    }
+
+    private async Task TryRemove() =>
+        _lastResult = await Modal.ConfirmAsync("Remove item?",
+            "Ballpen, black will be removed from your cart.", "Remove item", variant: ModalVariant.Danger)
+            ? "removed" : "kept";
+
+    private async Task TryReject()
+    {
+        var reason = await Modal.PromptAsync("Reject RIS 2026-10-0001",
+            "Tell the office what to fix so they can resubmit.", "Reason", "Reject request", minLength: 10);
+        _lastResult = reason is null ? "cancelled" : $"rejected: “{reason}”";
+    }
+
+    private async Task TryQuotaError()
+    {
+        await Modal.WarningAsync("Exceeds APP-CSE balance",
+            "You can add up to 12 more pcs of Ballpen, black. (APP-CSE total: 50 · Requested to date: 38)");
+        _lastResult = "warning acknowledged";
+    }
+
+    private async Task TryApprove() =>
+        _lastResult = await Modal.ConfirmAsync("Approve request?",
+            "Stock and the office's APP-CSE balance will be deducted.", "Approve request",
+            variant: ModalVariant.Success,
+            onConfirmAsync: async _ => { await Task.Delay(1500); return null; })
+            ? "approved" : "cancelled";
+
+    private readonly RisDocumentModel _sample = new()
+    {
+        EntityName = "Department of Education - Regional Office",
+        FundCluster = "01",
+        Division = "Curriculum and Learning Management Division",
+        Office = "Learning Resource Management Section",
+        Purpose = "Office supplies for Q4 operations",
+        Lines =
+        [
+            new RisLine(1, "CSE-001", "pc", "Ballpen, black, 0.5 mm", 20),
+            new RisLine(2, "CSE-014", "ream", "Bond paper, A4, 70 gsm", 5),
+            new RisLine(3, "CSE-027", "box", "Paper clip, vinyl-coated, 33 mm", 2),
+        ],
+        RequestedBy = new RisSignatory("Juan Dela Cruz", "Administrative Assistant I", null),
+    };
+}

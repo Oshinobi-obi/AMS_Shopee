@@ -63,9 +63,6 @@ public partial class AmsDbContext : DbContext
 
     public virtual DbSet<VOfficeItemBalance> VOfficeItemBalances { get; set; }
 
-    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        => optionsBuilder.UseMySql("name=ConnectionStrings:Default", Microsoft.EntityFrameworkCore.ServerVersion.Parse("8.0.46-mysql"));
-
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
