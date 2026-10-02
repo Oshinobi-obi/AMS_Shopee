@@ -43,12 +43,12 @@ else
                     <button type="button" @onclick="() => Step(-1)" disabled="@(_qty <= 1)" aria-label="Decrease quantity">
                         <i class="bi bi-dash" aria-hidden="true"></i>
                     </button>
-                    <input type="number" min="1" inputmode="numeric" @bind="_qty" @bind:after="Clamp" aria-label="Quantity" />
+                    <input autocomplete="off" type="number" min="1" inputmode="numeric" @bind="_qty" @bind:after="Clamp" aria-label="Quantity" />
                     <button type="button" @onclick="() => Step(1)" disabled="@(_qty >= MaxQty)" aria-label="Increase quantity">
                         <i class="bi bi-plus" aria-hidden="true"></i>
                     </button>
                 </div>
-                <button type="button" class="btn btn-primary btn-lg flex-grow-1" @onclick="AddAsync"
+                <button type="button" class="btn btn-accent btn-lg flex-grow-1" @onclick="AddAsync"
                         disabled="@(_busy || (_isOffice && (_balance is null || _balance.CanStillAdd == 0)))">
                     @if (_busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
                     else { <i class="bi bi-cart-plus me-1" aria-hidden="true"></i> }

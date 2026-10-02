@@ -1,7 +1,6 @@
 /* ReusableModal.razor.css — scoped styles.
    Tokens live on :root in app.css so the catalog, cart and modals share them:
-   --ink:#1b2b3f; --muted:#5b6878; --line:#d9dee5; --surface:#ffffff;
-   --brand:#1f4e8c; --ok:#1e7a46; --warn:#a15c07; --bad:#b42318; */
+   --ink, --muted, --line, --surface, --brand (royal blue), --ok, --warn, --bad. */
 
 .am-backdrop {
     position: fixed;
@@ -9,18 +8,18 @@
     display: grid;
     place-items: center;
     padding: 1rem;
-    background: rgb(15 23 36 / .48);
+    background: rgb(0 0 40 / .5);
     animation: am-fade 140ms ease-out;
 }
 
 .am-dialog {
-    --accent: var(--brand, #1f4e8c);
+    --accent: var(--brand, #0b2fa8);
     width: 100%;
     max-height: calc(100dvh - 2rem);
     display: flex;
     flex-direction: column;
     background: var(--surface, #fff);
-    color: var(--ink, #1b2b3f);
+    color: var(--ink, #141a3a);
     border-radius: 14px;
     box-shadow: 0 24px 60px rgb(15 23 36 / .28), 0 2px 6px rgb(15 23 36 / .12);
     outline: none;
@@ -71,7 +70,7 @@
     border-radius: 8px;
     color: var(--muted, #5b6878);
 }
-.am-close:hover { background: #eef1f5; color: var(--ink, #1b2b3f); }
+.am-close:hover { background: #eef1f5; color: var(--ink, #141a3a); }
 
 .am-body {
     padding: .5rem 1.25rem 1rem;

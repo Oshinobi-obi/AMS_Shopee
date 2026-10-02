@@ -75,18 +75,7 @@ public static class AccountEndpoints
             });
             await db.SaveChangesAsync();
 
-            var claims = new List<Claim>
-            {
-                new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new(ClaimTypes.Name, string.IsNullOrWhiteSpace(user.DisplayName) ? user.FullName : user.DisplayName),
-                new(ClaimTypes.Role, user.Role),
-                new("office_id", user.OfficeId?.ToString() ?? ""),
-                new("office_acronym", user.Office?.OfficeAcronym ?? ""),
-                new("can_requisition", user.Office?.CanRequisition == true ? "1" : "0"),
-                new("must_change_password", user.RequirePasswordChange ? "1" : "0"),
-            };
-            await http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-                new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
+            await SignInAsync(http, user);
 
             // Resume what the guest was doing: the catalog page reads ?add=&qty= and adds the item.
             if (f.PendingItemId is uint itemId)
@@ -94,11 +83,43 @@ public static class AccountEndpoints
             return Results.LocalRedirect(back);
         });
 
+        // Re-issues the cookie from the database (after a password change).
+        group.MapGet("/refresh", async (HttpContext http, IDbContextFactory<AmsDbContext> dbFactory, string? returnUrl) =>
+        {
+            if (!uint.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
+                return Results.LocalRedirect("/");
+            await using var db = await dbFactory.CreateDbContextAsync();
+            var user = await db.Users.Include(u => u.Office).AsNoTracking().FirstOrDefaultAsync(u => u.UserId == id);
+            if (user is null || user.IsActive == false)
+            {
+                await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                return Results.LocalRedirect("/");
+            }
+            await SignInAsync(http, user);
+            return Results.LocalRedirect(SafeLocal(returnUrl));
+        }).RequireAuthorization();
+
         group.MapPost("/logout", async (HttpContext http) =>
         {
             await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.LocalRedirect("/");
         });
+    }
+
+    private static Task SignInAsync(HttpContext http, User user)
+    {
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.UserId.ToString()),
+            new(ClaimTypes.Name, string.IsNullOrWhiteSpace(user.DisplayName) ? user.FullName : user.DisplayName),
+            new(ClaimTypes.Role, user.Role),
+            new("office_id", user.OfficeId?.ToString() ?? ""),
+            new("office_acronym", user.Office?.OfficeAcronym ?? ""),
+            new("can_requisition", user.Office?.CanRequisition == true ? "1" : "0"),
+            new("must_change_password", user.RequirePasswordChange ? "1" : "0"),
+        };
+        return http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
+            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
     }
 
     private static bool PasswordMatches(string password, string hash)

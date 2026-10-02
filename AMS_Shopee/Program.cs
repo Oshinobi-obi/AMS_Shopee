@@ -48,6 +48,12 @@ builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ModalService>();
 builder.Services.AddScoped<RequisitionService>();
 builder.Services.AddScoped<CatalogService>();
+builder.Services.AddScoped<OfficeQueries>();
+builder.Services.AddScoped<MyRequisitionQueries>();
+// Live updates: one database watcher for the server, one relay per browser tab
+builder.Services.AddSingleton<AMS_Shopee.Services.Live.RisEventFeed>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<AMS_Shopee.Services.Live.RisEventFeed>());
+builder.Services.AddScoped<AMS_Shopee.Services.Live.LiveRefresh>();
 builder.Services.AddScoped<ToastService>();
 builder.Services.AddScoped<CartState>();
 builder.Services.AddScoped<AddToCartFlow>();
@@ -69,6 +75,7 @@ app.UseAntiforgery();
 
 app.MapStaticAssets();
 app.MapAccountEndpoints();
+app.MapRisEndpoints();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

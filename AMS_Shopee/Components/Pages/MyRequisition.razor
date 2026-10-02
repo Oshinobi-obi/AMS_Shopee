@@ -1,0 +1,239 @@
+@page "/my-requisitions/{RisId:long}"
+@inject MyRequisitionQueries Queries
+@inject RequisitionService Requisitions
+@inject ModalService Modal
+@inject ToastService Toast
+@inject IJSRuntime JS
+@inject LiveRefresh Live
+@implements IDisposable
+
+<PageTitle>@(_ris is null ? "Requisition" : $"RIS {_ris.RisNo}") | AMS</PageTitle>
+
+<section class="page-head no-print">
+    <div class="container-xl">
+        <a class="hero-link ms-0" href="/my-requisitions"><i class="bi bi-arrow-left" aria-hidden="true"></i> My requisitions</a>
+        <h1 class="mt-2">@(_ris is null ? "Requisition" : $"RIS {_ris.RisNo}")</h1>
+        @if (_ris is not null)
+        {
+            <p>Submitted @_ris.RequestedAt.ToString("MMMM d, yyyy 'at' h:mm tt")</p>
+        }
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    @if (_loading)
+    {
+        <p class="text-secondary py-5 text-center">Loading…</p>
+    }
+    else if (_ris is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-question-circle" aria-hidden="true"></i>
+            <h2>Requisition not found</h2>
+            <p>It may belong to another office, or the link is old.</p>
+            <a class="btn btn-primary" href="/my-requisitions">Back to my requisitions</a>
+        </div>
+    }
+    else
+    {
+        <div class="cart-layout">
+            <div class="no-print">
+                <section class="panel">
+                    <header class="panel-head">
+                        <h2>Status</h2>
+                        <span class="status-pill @RisStatusText.Css(_ris.Status)">@RisStatusText.Label(_ris.Status)</span>
+                    </header>
+                    <div class="panel-body">
+                        @if (_ris.Status is "Rejected" or "Cancelled")
+                        {
+                            <div class="callout-box @(_ris.Status == "Rejected" ? "is-bad" : "")">
+                                <i class="bi @(_ris.Status == "Rejected" ? "bi-x-octagon" : "bi-slash-circle")" aria-hidden="true"></i>
+                                <div>
+                                    @if (_ris.Status == "Rejected")
+                                    {
+                                        <p class="mb-1"><strong>AMS rejected this requisition.</strong></p>
+                                        <p class="mb-2">“@_ris.RejectionReason”</p>
+                                        <p class="mb-0 small">Nothing was deducted. Fix what AMS asked for and submit a new requisition from the catalog.</p>
+                                    }
+                                    else
+                                    {
+                                        <p class="mb-0"><strong>Your office cancelled this requisition.</strong> Nothing was deducted.</p>
+                                    }
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <ol class="steps">
+                                <li class="is-done"><span class="step-dot"><i class="bi bi-check" aria-hidden="true"></i></span>
+                                    <div><strong>Submitted</strong><span>@_ris.RequestedAt.ToString("MMM d, yyyy")</span></div></li>
+                                <li class="@(_ris.ApprovedAt is null ? "is-current" : "is-done")"><span class="step-dot">@if (_ris.ApprovedAt is not null) { <i class="bi bi-check" aria-hidden="true"></i> }</span>
+                                    <div><strong>Approved by AMS</strong><span>@(_ris.ApprovedAt?.ToString("MMM d, yyyy") ?? "Waiting for AMS review")</span></div></li>
+                                <li class="@(_ris.IssuedAt is not null ? "is-done" : _ris.ApprovedAt is not null ? "is-current" : "")"><span class="step-dot">@if (_ris.IssuedAt is not null) { <i class="bi bi-check" aria-hidden="true"></i> }</span>
+                                    <div><strong>Print, sign and pick up</strong><span>@(_ris.ApprovedAt is not null && _ris.IssuedAt is null ? "Print the RIS, sign it, and bring it to AMS" : "After approval")</span></div></li>
+                                <li class="@(_ris.IssuedAt is not null ? "is-done" : "")"><span class="step-dot">@if (_ris.IssuedAt is not null) { <i class="bi bi-check" aria-hidden="true"></i> }</span>
+                                    <div><strong>Issued</strong><span>@(_ris.IssuedAt?.ToString("MMM d, yyyy") ?? "AMS saves the signed copy here")</span></div></li>
+                            </ol>
+                        }
+
+                        <p class="d-flex justify-content-between mt-3 mb-0">
+                            <span class="text-secondary">@(_ris.Status is "ApprovedForIssuance" or "Issued" ? "Amount issued" : "Estimated amount")</span>
+                            <strong>₱@_ris.Amount.ToString("N2")</strong>
+                        </p>
+
+                        @if (_ris.Status is "PendingApproval" or "ApprovedForIssuance")
+                        {
+                            <div class="mt-3">
+                                <label class="form-label" for="ris-receiver">Received by</label>
+                                @if (_ris.OfficePersonnel.Count > 0)
+                                {
+                                    <PersonnelPicker Id="ris-receiver" Options="_ris.OfficePersonnel"
+                                                     Value="@(_ris.ReceivedById?.ToString() ?? "")" ValueChanged="SetReceiverAsync"
+                                                     Placeholder="Choose who will pick up the items" />
+                                }
+                                else
+                                {
+                                    <p class="form-text mt-0">No personnel are listed for your office yet. Ask AMS to add them.</p>
+                                }
+                            </div>
+                        }
+
+                        @if (_ris.Status == "ApprovedForIssuance")
+                        {
+                            <button type="button" class="btn btn-accent btn-lg w-100 mt-3" @onclick="PrintAsync" disabled="@(_ris.ReceivedById is null)">
+                                <i class="bi bi-printer me-1" aria-hidden="true"></i> Print RIS for signing
+                            </button>
+                            <p class="small text-secondary mt-2 mb-0">
+                                @(_ris.ReceivedById is null
+                                    ? "Choose who will receive the items first, so every name is on the printout."
+                                    : "Sign it, then bring it to AMS when you pick up the items. AMS signs, scans it and marks it as issued.")
+                            </p>
+                        }
+
+                        @if (_ris.Status == "Issued" && _ris.HasSignedCopy)
+                        {
+                            <a class="btn btn-outline-primary w-100 mt-3" href="/ris/@_ris.RisId/signed?download=true">
+                                <i class="bi bi-download me-1" aria-hidden="true"></i> Download signed RIS (PDF)
+                            </a>
+                        }
+                        @if (_ris.Status == "PendingApproval")
+                        {
+                            <button type="button" class="btn btn-outline-danger w-100 mt-3" @onclick="CancelAsync">
+                                <i class="bi bi-x-circle me-1" aria-hidden="true"></i> Cancel this requisition
+                            </button>
+                            <p class="small text-secondary mt-2 mb-0">You can cancel while AMS hasn't reviewed it yet.</p>
+                        }
+                    </div>
+                </section>
+
+                @if (_ris.Events.Count > 0)
+                {
+                    <section class="panel">
+                        <header class="panel-head"><h2>History</h2></header>
+                        <div class="panel-body">
+                            <ul class="history">
+                                @foreach (var e in _ris.Events)
+                                {
+                                    <li>
+                                        <span class="status-pill @RisStatusText.Css(e.ToStatus)">@RisStatusText.Label(e.ToStatus)</span>
+                                        <span class="history-when">@e.At.ToString("MMM d, yyyy h:mm tt")</span>
+                                        @if (!string.IsNullOrWhiteSpace(e.Note)) { <span class="history-note">@e.Note</span> }
+                                    </li>
+                                }
+                            </ul>
+                        </div>
+                    </section>
+                }
+            </div>
+
+            <div class="slip-column">
+                @if (_ris.Status == "Issued")
+                {
+                    <div class="slip-sticky">
+                        <header class="slip-head">
+                            <h2>Signed Requisition and Issue Slip</h2>
+                            <span>Scanned by AMS when the items were issued</span>
+                        </header>
+                        @if (_ris.HasSignedCopy)
+                        {
+                            <iframe class="pdf-frame" src="/ris/@_ris.RisId/signed" title="Signed RIS @_ris.RisNo"></iframe>
+                        }
+                        else
+                        {
+                            <div class="empty-state m-3"><i class="bi bi-file-earmark-x" aria-hidden="true"></i><h2>No signed copy on file</h2><p>Ask AMS to upload the signed RIS.</p></div>
+                        }
+                    </div>
+                }
+                else
+                {
+                <div class="slip-sticky">
+                    <header class="slip-head no-print">
+                        <h2>Requisition and Issue Slip</h2>
+                        <span>@(_ris.Status == "PendingApproval" ? "Issue columns are filled in by AMS" : "As recorded by AMS")</span>
+                    </header>
+                    <div class="ris-scroll">
+                        <RisDocument Model="_ris.Document" IsDraft="@(_ris.Status is "PendingApproval" or "Rejected" or "Cancelled")" MinRows="8" />
+                    </div>
+                </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public long RisId { get; set; }
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private CurrentUser? _user;
+    private MyRisDetail? _ris;
+    private bool _loading = true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
+        _ris = RisId is > 0 and <= uint.MaxValue ? await Queries.GetAsync(_user, (uint)RisId) : null;
+        _loading = false;
+    }
+
+    protected override void OnInitialized() => Live.Changed += OnLiveAsync;
+
+    // AMS approving, rejecting or issuing this RIS updates the page without a reload.
+    private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
+    {
+        if (_ris is null || !events.Any(e => e.RisId == _ris.RisId)) return;
+        _ris = await Queries.GetAsync(_user, _ris.RisId);
+        StateHasChanged();
+    }
+
+    public void Dispose() => Live.Changed -= OnLiveAsync;
+
+    private async Task SetReceiverAsync(string value)
+    {
+        if (_ris is null || _user is null) return;
+        uint? id = uint.TryParse(value, out var v) ? v : null;
+        var r = await Requisitions.SetReceiverAsync(_user, _ris.RisId, id);
+        if (!r.Ok) { await Modal.WarningAsync("Couldn't save", r.Message); return; }
+        _ris = await Queries.GetAsync(_user, _ris.RisId);
+        Toast.Show(r.Message);
+    }
+
+    private async Task CancelAsync()
+    {
+        if (_ris is null || _user is null) return;
+        var ok = await Modal.ConfirmAsync($"Cancel RIS {_ris.RisNo}?",
+            "AMS won't process it, and its quantities go back to your office's APP-CSE balance. This can't be undone.",
+            "Cancel requisition", "Keep it", ModalVariant.Danger,
+            onConfirmAsync: async _ =>
+            {
+                var r = await Requisitions.CancelAsync(_user, _ris.RisId);
+                return r.Ok ? null : r.Message;
+            });
+        if (!ok) { await OnParametersSetAsync(); return; }
+
+        Toast.Show($"RIS {_ris.RisNo} was cancelled.", ModalVariant.Info);
+        await OnParametersSetAsync();
+    }
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+}

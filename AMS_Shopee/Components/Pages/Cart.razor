@@ -1,0 +1,389 @@
+@page "/cart"
+@implements IDisposable
+@inject OfficeQueries OfficeQ
+@inject RequisitionService Requisitions
+@inject CartState CartBadge
+@inject ModalService Modal
+@inject ToastService Toast
+@inject AddToCartFlow Flow
+@inject NavigationManager Nav
+@inject ILogger<Cart> Log
+
+<PageTitle>Your requisition | AMS</PageTitle>
+
+<section class="page-head">
+    <div class="container-xl">
+        <h1>Your requisition</h1>
+        <p>Review your items, state the purpose, and check the slip before sending it to AMS.</p>
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    @if (_loading)
+    {
+        <p class="text-secondary py-5 text-center">Loading your cart…</p>
+    }
+    else if (_user is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-person-lock" aria-hidden="true"></i>
+            <h2>Log in to see your cart</h2>
+            <p>Your cart belongs to your office account.</p>
+            <button type="button" class="btn btn-primary" @onclick="() => Flow.ShowLoginAsync()">Log in</button>
+        </div>
+    }
+    else if (_cart is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            <h2>AMS accounts don't have a cart</h2>
+            <p>Requisitions are filed by office accounts. AMS reviews them in the approval queue.</p>
+            <a class="btn btn-primary" href="/">Back to the catalog</a>
+        </div>
+    }
+    else if (_cart.Lines.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="bi bi-cart3" aria-hidden="true"></i>
+            <h2>Your cart is empty</h2>
+            <p>Add supplies from the catalog. They'll appear here together with a preview of your requisition slip.</p>
+            <a class="btn btn-accent" href="/">Browse supplies</a>
+        </div>
+    }
+    else
+    {
+        <div class="view-switch d-lg-none" role="group" aria-label="Choose view">
+            <button type="button" aria-pressed="@(_mobileSlip ? "false" : "true")" @onclick="() => _mobileSlip = false">
+                Items (@_cart.Lines.Count)
+            </button>
+            <button type="button" aria-pressed="@(_mobileSlip ? "true" : "false")" @onclick="() => _mobileSlip = true">
+                Slip preview
+            </button>
+        </div>
+
+        <div class="cart-layout">
+            <div class="cart-column @(_mobileSlip ? "d-none d-lg-block" : "")">
+                <section class="panel" aria-labelledby="items-heading">
+                    <header class="panel-head">
+                        <h2 id="items-heading">Items</h2>
+                        <span>@_cart.Lines.Count @(_cart.Lines.Count == 1 ? "item" : "items"), @_cart.TotalUnits units</span>
+                    </header>
+
+                    @foreach (var line in _cart.Lines)
+                    {
+                        <article class="cart-line @(_highlight == (int)line.ItemId ? "is-highlight" : "")" @key="line.ItemId"
+                                 @onmouseenter="() => _highlight = (int)line.ItemId"
+                                 @onmouseleave="() => _highlight = null">
+                            <div class="cart-thumb">
+                                @if (!string.IsNullOrEmpty(line.ImagePath))
+                                {
+                                    <img src="@line.ImagePath" alt="" />
+                                }
+                                else
+                                {
+                                    <i class="bi @(line.CategoryIcon ?? "bi-box-seam")" aria-hidden="true"></i>
+                                }
+                            </div>
+
+                            <div class="cart-info">
+                                <div class="cart-title-row">
+                                    <h3>@line.Name</h3>
+                                    <span class="cart-line-total">₱@line.LineTotal.ToString("N2")</span>
+                                </div>
+                                @if (!string.IsNullOrWhiteSpace(line.Specifications))
+                                {
+                                    <p class="cart-specs">@line.Specifications</p>
+                                }
+                                <p class="cart-meta">Stock no. @line.StockNo, ₱@line.UnitPrice.ToString("N2") per @line.Unit</p>
+
+                                <div class="cart-controls">
+                                    <div class="qty-stepper qty-sm" role="group" aria-label="@($"Quantity of {line.Name}")">
+                                        <button type="button" aria-label="Decrease quantity"
+                                                disabled="@(_busyItem is not null || line.Quantity <= 1)"
+                                                @onclick="() => ChangeQtyAsync(line, line.Quantity - 1)">
+                                            <i class="bi bi-dash" aria-hidden="true"></i>
+                                        </button>
+                                        <input autocomplete="off" type="number" min="1" inputmode="numeric" value="@line.Quantity"
+                                               disabled="@(_busyItem is not null)" aria-label="Quantity"
+                                               @onchange="e => OnQtyInput(line, e)" />
+                                        <button type="button" aria-label="Increase quantity"
+                                                disabled="@(_busyItem is not null || line.Balance is null || line.Quantity >= line.Balance.Remaining)"
+                                                @onclick="() => ChangeQtyAsync(line, line.Quantity + 1)">
+                                            <i class="bi bi-plus" aria-hidden="true"></i>
+                                        </button>
+                                    </div>
+                                    <span class="cart-unit">@line.Unit</span>
+                                    <button type="button" class="btn btn-link cart-remove" @onclick="() => RemoveAsync(line)"
+                                            disabled="@(_busyItem is not null)">
+                                        <i class="bi bi-trash3" aria-hidden="true"></i> Remove
+                                    </button>
+                                </div>
+
+                                @if (line.Balance is null)
+                                {
+                                    <p class="cart-note is-bad"><i class="bi bi-x-circle" aria-hidden="true"></i> No longer in your APP-CSE. Remove this item to submit.</p>
+                                }
+                                else if (line.Quantity > line.Balance.Remaining)
+                                {
+                                    <p class="cart-note is-bad"><i class="bi bi-x-circle" aria-hidden="true"></i> Only @line.Balance.Remaining @line.Unit left in your APP-CSE. Lower the quantity to submit.</p>
+                                }
+                                else
+                                {
+                                    <p class="cart-note">APP-CSE allows up to <strong>@line.Balance.Remaining</strong> @line.Unit (total @line.Balance.Allocated, requested to date @line.Balance.RequestedToDate).</p>
+                                }
+                                @if (line.Quantity > line.StockOnHand)
+                                {
+                                    <p class="cart-note is-warn">
+                                        <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                        @(line.StockOnHand <= 0 ? "AMS has none in the warehouse right now." : $"AMS has only {line.StockOnHand} {line.Unit} in the warehouse.")
+                                        AMS may issue part of it or ask you to wait.
+                                    </p>
+                                }
+                            </div>
+                        </article>
+                    }
+
+                    <footer class="cart-total">
+                        <span>Estimated amount</span>
+                        <strong>₱@_cart.EstimatedTotal.ToString("N2")</strong>
+                    </footer>
+                </section>
+
+                <section class="panel" aria-labelledby="details-heading">
+                    <header class="panel-head"><h2 id="details-heading">Requisition details</h2></header>
+                    <div class="panel-body">
+                        <div class="mb-3">
+                            <label class="form-label" for="ris-purpose">Purpose <span class="text-danger" aria-hidden="true">*</span></label>
+                            <textarea autocomplete="off" id="ris-purpose" class="form-control @(_purposeError is null ? "" : "is-invalid")" rows="3" maxlength="500"
+                                      placeholder="Example: Office supplies for the regional training on learning resources, 3rd quarter"
+                                      @bind="_purpose" @bind:event="oninput" @bind:after="() => _purposeError = null"></textarea>
+                            @if (_purposeError is not null)
+                            {
+                                <div class="invalid-feedback">@_purposeError</div>
+                            }
+                            <div class="form-text">This appears in the Purpose line of the RIS.</div>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label" for="ris-requester">Requested by</label>
+                            @if (_cart.Personnel.Count > 0)
+                            {
+                                <PersonnelPicker Id="ris-requester" Options="_cart.Personnel"
+                                                 @bind-Value="_requestedByValue"
+                                                 Placeholder="Leave blank (sign on the printed slip)" />
+                            }
+                            else
+                            {
+                                <p class="form-text mt-0">No personnel are listed for @_cart.OfficeAcronym yet, so this stays blank for signing on the printed slip. AMS can add your office's personnel.</p>
+                            }
+                        </div>
+
+                        @if (_cart.Personnel.Count > 0)
+                        {
+                            <div class="mb-4">
+                                <label class="form-label" for="ris-receiver">Received by</label>
+                                <PersonnelPicker Id="ris-receiver" Options="_cart.Personnel"
+                                                 @bind-Value="_receivedByValue"
+                                                 Placeholder="Decide later (before printing)" />
+                                <div class="form-text">Who will pick up the items at AMS. You can change this until the items are issued.</div>
+                            </div>
+                        }
+
+                        <button type="button" class="btn btn-accent btn-lg w-100" @onclick="SubmitAsync"
+                                disabled="@(_busyItem is not null || HasBlockingLines)">
+                            <i class="bi bi-send me-1" aria-hidden="true"></i> Submit requisition
+                        </button>
+                        <p class="small text-secondary mt-2 mb-0">
+                            @(HasBlockingLines
+                                ? "Fix the items marked in red before submitting."
+                                : "AMS reviews your request. Quantities are reserved from your APP-CSE while it's pending.")
+                        </p>
+                    </div>
+                </section>
+            </div>
+
+            <div class="slip-column @(_mobileSlip ? "" : "d-none d-lg-block")">
+                <div class="slip-sticky">
+                    <header class="slip-head">
+                        <h2>Requisition and Issue Slip</h2>
+                        <span>Preview, updates as you edit</span>
+                    </header>
+                    <div class="ris-scroll">
+                        <RisDocument Model="RisModel" IsDraft="true" HighlightItemId="_highlight" MinRows="8" />
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private CurrentUser? _user;
+    private CartView? _cart;
+    private bool _loading = true;
+    private bool _mobileSlip;
+    private int? _highlight;
+    private uint? _busyItem;
+    private string _purpose = "";
+    private string? _purposeError;
+    private string _requestedByValue = "";   // <select> value; "" = blank
+    private uint? _requestedBy => uint.TryParse(_requestedByValue, out var id) ? id : null;
+    private string _receivedByValue = "";
+    private uint? _receivedBy => uint.TryParse(_receivedByValue, out var id) ? id : null;
+    private PersonnelOption? SelectedReceiver => _cart?.Personnel.FirstOrDefault(p => p.Id == _receivedBy);
+
+    private PersonnelOption? SelectedPersonnel =>
+        _cart?.Personnel.FirstOrDefault(p => p.Id == _requestedBy);
+
+    private bool HasBlockingLines =>
+        _cart is not null && _cart.Lines.Any(l => l.Balance is null || l.Quantity > l.Balance.Remaining);
+
+    private RisDocumentModel RisModel => new()
+    {
+        EntityName = _cart!.EntityName,
+        FundCluster = _cart.FundCluster,
+        Division = _cart.Division,
+        Office = _cart.Office,
+        ResponsibilityCenterCode = _cart.ResponsibilityCenterCode,
+        Purpose = _purpose,
+        Lines = _cart.Lines
+            .Select(l => new RisLine((int)l.ItemId, l.StockNo, l.Unit, l.Description, l.Quantity))
+            .ToList(),
+        RequestedBy = new RisSignatory(SelectedPersonnel?.FullName, SelectedPersonnel?.Position, DateTime.Today),
+        ReceivedBy = SelectedReceiver is { } rc ? new RisSignatory(rc.FullName, rc.Position, null) : null,
+        // Date stays blank until AMS actually approves.
+        ApprovedBy = _cart.ApprovedBy is { } a ? new RisSignatory(a.FullName, a.Position, null) : null,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
+        CartBadge.Changed += OnCartChanged;
+        await ReloadAsync();
+        _loading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        try
+        {
+            _cart = await OfficeQ.GetCartAsync(_user);
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Cart failed to load");
+            await Modal.ErrorAsync("Your cart couldn't load", "Check your connection, then reload the page.");
+        }
+    }
+
+    // Another tab or the catalog changed the cart.
+    private void OnCartChanged() => _ = InvokeAsync(async () =>
+    {
+        if (_busyItem is not null) return;
+        await ReloadAsync();
+        StateHasChanged();
+    });
+
+    private Task OnQtyInput(CartLineView line, ChangeEventArgs e) =>
+        int.TryParse(e.Value?.ToString(), out var qty) && qty >= 1
+            ? ChangeQtyAsync(line, qty)
+            : ReloadAsync();   // invalid entry: snap back to the saved value
+
+    private async Task ChangeQtyAsync(CartLineView line, int qty)
+    {
+        if (qty == line.Quantity) return;
+        _busyItem = line.ItemId;
+        try
+        {
+            var result = await Requisitions.SetCartQuantityAsync(_user, line.ItemId, qty);
+            if (!result.Allowed)
+                await Modal.WarningAsync(result.Issues[0].Title, result.Issues[0].Message);
+        }
+        finally
+        {
+            await ReloadAsync();
+            await CartBadge.RefreshAsync();   // badge; our own Changed handler skips while busy
+            _busyItem = null;
+        }
+    }
+
+    private async Task RemoveAsync(CartLineView line)
+    {
+        var ok = await Modal.ConfirmAsync("Remove this item?",
+            $"{line.Name} ({line.Quantity} {line.Unit}) will be removed from your cart.",
+            "Remove item", "Keep it", ModalVariant.Danger);
+        if (!ok) return;
+
+        _busyItem = line.ItemId;
+        try
+        {
+            await Requisitions.RemoveFromCartAsync(_user, line.ItemId);
+            Toast.Show($"Removed {line.Name} from your cart.", ModalVariant.Info);
+        }
+        finally
+        {
+            await ReloadAsync();
+            await CartBadge.RefreshAsync();   // badge; our own Changed handler skips while busy
+            _busyItem = null;
+        }
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (_cart is null || _user is null) return;
+        if (string.IsNullOrWhiteSpace(_purpose))
+        {
+            _purposeError = "State the purpose. It's required on the requisition slip.";
+            _mobileSlip = false;
+            return;
+        }
+
+        OpResult? result = null;
+        var confirmed = await Modal.ConfirmAsync(
+            "Submit this requisition?",
+            "AMS will review it for approval. You can't change it after it's submitted.",
+            "Submit requisition", "Keep editing", ModalVariant.Info,
+            body: SubmitSummary,
+            onConfirmAsync: async _ =>
+            {
+                result = await Requisitions.SubmitAsync(_user, _purpose, _requestedBy, _receivedBy);
+                if (result.Ok) return null;
+                return result.Details is { Count: > 0 } details
+                    ? $"{result.Message} {string.Join(" ", details)}"
+                    : result.Message;
+            });
+
+        if (!confirmed || result is not { Ok: true })
+        {
+            await ReloadAsync();   // something may have changed (e.g. balance used up elsewhere)
+            return;
+        }
+
+        _purpose = "";
+        _requestedByValue = "";
+        _receivedByValue = "";
+        await CartBadge.RefreshAsync();
+        Toast.Show($"{result.Message} Follow it here until AMS releases the items.");
+        Nav.NavigateTo($"/my-requisitions/{result.RisId}");
+    }
+
+    private RenderFragment SubmitSummary => @<div class="submit-summary">
+        <dl>
+            <dt>Office</dt><dd>@_cart!.Office</dd>
+            <dt>Purpose</dt><dd>@_purpose</dd>
+            <dt>Requested by</dt><dd>@(SelectedPersonnel?.FullName ?? "To be signed on the printed slip")</dd>
+            <dt>Received by</dt><dd>@(SelectedReceiver?.FullName ?? "To be chosen before printing")</dd>
+        </dl>
+        <ul>
+            @foreach (var l in _cart.Lines)
+            {
+                <li><span>@l.Name</span><strong>@l.Quantity @l.Unit</strong></li>
+            }
+        </ul>
+        <p class="submit-total">Estimated amount <strong>₱@_cart.EstimatedTotal.ToString("N2")</strong></p>
+    </div>;
+
+    public void Dispose() => CartBadge.Changed -= OnCartChanged;
+}

@@ -23,11 +23,15 @@
     font-size: 11pt;
     line-height: 1.3;
     box-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 8px 24px rgb(15 23 36 / .12);
+    overflow-wrap: anywhere;   /* long words or pasted text wrap inside the form instead of crossing its borders */
 }
 
 /* Narrow screens: scale the whole page instead of reflowing an official form */
 @media (max-width: 900px) {
     .ris-sheet { zoom: .62; }
+}
+@media (max-width: 575.98px) {
+    .ris-sheet { zoom: .45; }   /* whole page visible on a phone; pinch to zoom */
 }
 
 .ris-appendix { text-align: right; font-style: italic; font-size: 10pt; }
@@ -49,12 +53,13 @@
     vertical-align: top;
     word-wrap: break-word;
 }
-.ris-grid thead th { text-align: center; font-weight: 700; }
+.ris-grid thead th { text-align: center; font-weight: 700; word-wrap: normal; overflow-wrap: normal; }
+.ris-cols th { font-size: 10pt; padding-inline: .8mm; }
 .ris-band th { font-weight: 700; }
 .ris-meta td { font-size: 10.5pt; }
 
-.c-stock { width: 13%; } .c-unit { width: 8%; } .c-desc { width: 35%; }
-.c-qty   { width: 9%;  } .c-yn   { width: 5%; } .c-remarks { width: 16%; }
+.c-stock { width: 12%; } .c-unit { width: 8%; } .c-desc { width: 33%; }
+.c-qty   { width: 10.5%; } .c-yn   { width: 5.5%; } .c-remarks { width: 15%; }
 
 .t-center { text-align: center; }
 .t-num    { text-align: right; font-variant-numeric: tabular-nums; }
@@ -76,7 +81,7 @@
     border: 1px solid #000;
     border-top: 0;
 }
-.ris-purpose-text { flex: 1; border-bottom: 1px solid #000; }
+.ris-purpose-text { flex: 1; min-width: 0; border-bottom: 1px solid #000; white-space: pre-line; }
 
 .ris-sign { border-top: 0; }
 .ris-sign thead th { text-align: left; font-weight: 400; border-top: 0; }
@@ -93,7 +98,7 @@
     place-items: center;
     pointer-events: none;
     font: 700 72pt/1 system-ui, sans-serif;
-    color: rgb(31 78 140 / .07);
+    color: rgb(11 47 168 / .07);
     transform: rotate(-24deg);
     text-transform: uppercase;
 }

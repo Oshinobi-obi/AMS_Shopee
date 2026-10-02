@@ -101,8 +101,8 @@ CREATE TABLE system_settings (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT INTO system_settings (setting_key, setting_value) VALUES
- ('ris.entity_name',          'Department of Education - Regional Office (edit me)'),
- ('ris.default_fund_cluster', '01'),
+ ('ris.entity_name',          'Department of Education - Regional Office'),
+ ('ris.default_fund_cluster', ''),
  ('ris.number_format',        'yyyy-MM-{seq:0000}'),
  ('stock.default_reorder',    '10'),
  ('cart.allow_beyond_stock',  'true');

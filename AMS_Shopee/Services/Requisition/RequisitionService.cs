@@ -217,9 +217,53 @@ public sealed class RequisitionService(
         return check;
     }
 
+    /// Sets a cart line to an exact quantity (the cart page's stepper). Same rules as adding.
+    public async Task<CartCheck> SetCartQuantityAsync(CurrentUser? u, uint itemId, int qty, CancellationToken ct = default)
+    {
+        if (u is null || !u.IsOffice)
+            return CartCheck.Block("NOT_REQUESTING_OFFICE", "This account can't request supplies",
+                "Only office accounts can file requisitions.");
+        if (qty is < 1 or > 10_000)
+            return CartCheck.Block("INVALID_QTY", "Check the quantity", "Enter a whole number of at least 1.");
+
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var line = await db.CartItems.Include(c => c.Item)
+            .FirstOrDefaultAsync(c => c.UserId == u.UserId && c.ItemId == itemId, ct);
+        if (line is null)
+            return CartCheck.Block("NOT_IN_CART", "Item not in your cart", "Refresh the page; this item was already removed.");
+
+        // Balance WITHOUT the cart (null user) — the new quantity replaces the cart amount.
+        var bal = await BalanceAsync(db, u.OfficeId!.Value, itemId, FiscalYear, null, ct);
+        if (bal is null)
+            return CartCheck.Block("NOT_IN_APP_CSE", "Not in your APP-CSE",
+                $"{line.Item.ItemName} is no longer in your office's APP-CSE. Remove it from your cart.");
+        if (qty > bal.Remaining)
+            return CartCheck.Block("EXCEEDS_APP_CSE", "Exceeds APP-CSE balance",
+                bal.Remaining == 0
+                    ? $"Your office has no remaining APP-CSE balance for {line.Item.ItemName}. Remove it from your cart."
+                    : $"You can request up to {bal.Remaining} {line.Item.UnitOfMeasure} of {line.Item.ItemName}. " +
+                      $"(APP-CSE total: {bal.Allocated} · Requested to date: {bal.RequestedToDate})", bal);
+
+        line.Quantity = (uint)qty;
+        await db.SaveChangesAsync(ct);
+
+        var issues = new List<CartIssue>();
+        if (qty > line.Item.StockOnHand)
+            issues.Add(new(IssueSeverity.Warning, "LIMITED_STOCK", "Limited warehouse stock",
+                $"AMS currently has {line.Item.StockOnHand} {line.Item.UnitOfMeasure}. Your request may be partially issued."));
+        return new CartCheck(true, issues, bal with { InCart = qty });
+    }
+
+    public async Task RemoveFromCartAsync(CurrentUser? u, uint itemId, CancellationToken ct = default)
+    {
+        if (u is null) return;
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        await db.CartItems.Where(c => c.UserId == u.UserId && c.ItemId == itemId).ExecuteDeleteAsync(ct);
+    }
+
     // ── 2. SUBMIT REQUISITION (cart → RIS, status PendingApproval) ──────
     public async Task<OpResult> SubmitAsync(
-        CurrentUser u, string purpose, uint? requestedByPersonnelId, CancellationToken ct = default)
+        CurrentUser u, string purpose, uint? requestedByPersonnelId, uint? receivedByPersonnelId, CancellationToken ct = default)
     {
         if (!u.IsOffice) return new(false, "Only office accounts can submit requisitions.");
         if (string.IsNullOrWhiteSpace(purpose)) return new(false, "Please state the purpose of this requisition.");
@@ -250,9 +294,18 @@ public sealed class RequisitionService(
         if (problems.Count > 0)
             return new(false, "Some items need your attention before submitting.", problems);   // rollback on dispose
 
+        // Signatories chosen by the office must be its own personnel.
+        foreach (var pid in new[] { requestedByPersonnelId, receivedByPersonnelId }.OfType<uint>())
+            if (!await db.RoPersonnel.AnyAsync(p => p.PersonnelId == pid && p.OfficeId == officeId, ct))
+                return new(false, "Choose people from your own office for Requested by and Received by.");
+
         var office   = await db.Offices.Include(o => o.ParentOffice).FirstAsync(o => o.OfficeId == officeId, ct);
         var settings = await db.SystemSettings.ToDictionaryAsync(s => s.SettingKey, s => s.SettingValue, ct);
         var now = NowPh;
+        uint? defaultApprover = uint.TryParse(settings.GetValueOrDefault("ris.approved_by_personnel_id"), out var approverId)
+            ? approverId : null;
+        uint? defaultIssuer = uint.TryParse(settings.GetValueOrDefault("ris.issued_by_personnel_id"), out var issuerId)
+            ? issuerId : null;
 
         var ris = new RisTransaction
         {
@@ -260,7 +313,7 @@ public sealed class RequisitionService(
             OfficeId = officeId,
             FiscalYear = year,
             EntityName = settings.GetValueOrDefault("ris.entity_name", "Entity name not set"),
-            FundCluster = settings.GetValueOrDefault("ris.default_fund_cluster", "01"),
+            FundCluster = settings.GetValueOrDefault("ris.default_fund_cluster", ""),
             DivisionName = (office.ParentOffice ?? office).OfficeName,   // section → its division
             OfficeName = office.OfficeName,
             ResponsibilityCenterCode = office.ResponsibilityCenterCode,
@@ -269,6 +322,10 @@ public sealed class RequisitionService(
             RequestedByUserId = u.UserId,
             RequestedByPersonnelId = requestedByPersonnelId,
             RequestedAt = now,
+            // Default approving official printed on the slip; AMS can change it when approving.
+            ApprovedByPersonnelId = defaultApprover,
+            IssuedByPersonnelId = defaultIssuer,
+            ReceivedByPersonnelId = receivedByPersonnelId,
         };
         ushort lineNo = 1;
         foreach (var line in cart)
@@ -381,7 +438,7 @@ public sealed class RequisitionService(
 
         ris.Status = Approved;
         ris.ApprovedByUserId = admin.UserId;
-        ris.ApprovedByPersonnelId = approvedByPersonnelId;
+        ris.ApprovedByPersonnelId = approvedByPersonnelId ?? ris.ApprovedByPersonnelId;   // keep the default if none chosen
         ris.IssuedByPersonnelId = issuedByPersonnelId;
         ris.ApprovedAt = now;
         ris.RisStatusHistories.Add(new RisStatusHistory
@@ -433,6 +490,52 @@ public sealed class RequisitionService(
         await db.SaveChangesAsync(ct);
         await tx.CommitAsync(ct);
         return new(true, $"{ris.RisNo} was rejected. The office can see your reason.");
+    }
+
+    // ── 6. RECEIVED BY (office names who will pick up the items) ────────
+    public async Task<OpResult> SetReceiverAsync(CurrentUser u, uint risId, uint? personnelId, CancellationToken ct = default)
+    {
+        if (!u.IsOffice) return new(false, "Only office accounts can do this.");
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        var ris = await db.RisTransactions.FirstOrDefaultAsync(r => r.RisId == risId && r.OfficeId == u.OfficeId, ct);
+        if (ris is null) return new(false, "Requisition not found.");
+        if (ris.Status is not (Pending or Approved))
+            return new(false, $"{ris.RisNo} is already {Friendly(ris.Status)}, so the receiver can't be changed here.");
+        if (personnelId is uint pid && !await db.RoPersonnel.AnyAsync(p => p.PersonnelId == pid && p.OfficeId == u.OfficeId, ct))
+            return new(false, "Choose someone from your own office.");
+
+        ris.ReceivedByPersonnelId = personnelId;
+        await db.SaveChangesAsync(ct);
+        return new(true, "Saved. This name will be printed under Received by.", RisId: risId);
+    }
+
+    // ── 5. CANCEL (office withdraws its own pending request) ───────────
+    public async Task<OpResult> CancelAsync(CurrentUser u, uint risId, CancellationToken ct = default)
+    {
+        if (!u.IsOffice) return new(false, "Only office accounts can cancel requisitions.");
+
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        await db.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT ris_id FROM ris_transactions WHERE ris_id = {risId} FOR UPDATE", ct);
+
+        var ris = await db.RisTransactions.SingleOrDefaultAsync(r => r.RisId == risId && r.OfficeId == u.OfficeId, ct);
+        if (ris is null) return new(false, "Requisition not found.");
+        if (ris.Status != Pending)
+            return new(false, $"{ris.RisNo} can no longer be cancelled because it's already {Friendly(ris.Status)}.");
+
+        var now = NowPh;
+        ris.Status = "Cancelled";
+        db.RisStatusHistories.Add(new RisStatusHistory
+        {
+            RisId = risId, FromStatus = Pending, ToStatus = "Cancelled", ChangedBy = u.UserId,
+            Note = "Cancelled by the office.", ChangedAt = now,
+        });
+        db.UserActivities.Add(new UserActivity { UserId = u.UserId, ActivityType = "RIS_CANCELLED", Description = $"Cancelled RIS {ris.RisNo}" });
+
+        await db.SaveChangesAsync(ct);
+        await tx.CommitAsync(ct);
+        return new(true, $"{ris.RisNo} was cancelled. Its quantities are back in your APP-CSE balance.", RisId: risId);
     }
 
     // ───────────────────────────── helpers ─────────────────────────────

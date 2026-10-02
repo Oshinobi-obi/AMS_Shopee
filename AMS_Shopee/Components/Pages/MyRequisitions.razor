@@ -1,0 +1,125 @@
+@page "/my-requisitions"
+@inject MyRequisitionQueries Queries
+@inject AddToCartFlow Flow
+@inject LiveRefresh Live
+@implements IDisposable
+
+<PageTitle>My requisitions | AMS</PageTitle>
+
+<section class="page-head">
+    <div class="container-xl">
+        <h1>My requisitions</h1>
+        <p>Every Requisition and Issue Slip your office has submitted, and where each one is now.</p>
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    @if (_loading)
+    {
+        <p class="text-secondary py-5 text-center">Loading your requisitions…</p>
+    }
+    else if (_user is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-person-lock" aria-hidden="true"></i>
+            <h2>Log in to see your requisitions</h2>
+            <p>Requisitions belong to your office account.</p>
+            <button type="button" class="btn btn-primary" @onclick="() => Flow.ShowLoginAsync()">Log in</button>
+        </div>
+    }
+    else if (!_user.IsOffice)
+    {
+        <div class="empty-state">
+            <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            <h2>This page is for office accounts</h2>
+            <p>AMS reviews requisitions in AMS StockWatch.</p>
+        </div>
+    }
+    else if (_rows.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="bi bi-inbox" aria-hidden="true"></i>
+            <h2>No requisitions yet</h2>
+            <p>When you submit your cart, the requisition appears here so you can follow it until the items are released.</p>
+            <a class="btn btn-accent" href="/">Browse supplies</a>
+        </div>
+    }
+    else
+    {
+        <div class="chip-row" aria-label="Filter by status">
+            @foreach (var f in Filters)
+            {
+                <button type="button" class="chip" aria-pressed="@(_filter == f.Key ? "true" : "false")" @onclick="() => _filter = f.Key">
+                    @f.Label <span class="chip-count">@CountFor(f.Key)</span>
+                </button>
+            }
+        </div>
+
+        <div class="req-list">
+            @foreach (var r in Visible)
+            {
+                <a class="req-row" href="/my-requisitions/@r.RisId" @key="r.RisId">
+                    <div class="req-main">
+                        <div class="req-top">
+                            <span class="req-no">RIS @r.RisNo</span>
+                            <span class="status-pill @RisStatusText.Css(r.Status)">@RisStatusText.Label(r.Status)</span>
+                        </div>
+                        <p class="req-purpose">@r.Purpose</p>
+                        <p class="req-meta">
+                            Submitted @r.RequestedAt.ToString("MMM d, yyyy"), @r.ItemCount @(r.ItemCount == 1 ? "item" : "items"),
+                            @r.Units units, ₱@r.Amount.ToString("N2")
+                        </p>
+                    </div>
+                    <i class="bi bi-chevron-right req-go" aria-hidden="true"></i>
+                </a>
+            }
+            @if (!Visible.Any())
+            {
+                <div class="empty-state"><i class="bi bi-funnel" aria-hidden="true"></i><h2>Nothing with this status</h2><p>Choose another filter above.</p></div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private static readonly (string Key, string Label)[] Filters =
+    [
+        ("all", "All"), ("PendingApproval", "Pending"), ("ApprovedForIssuance", "Ready for release"),
+        ("Issued", "Issued"), ("closed", "Rejected or cancelled"),
+    ];
+
+    private CurrentUser? _user;
+    private List<MyRisRow> _rows = [];
+    private bool _loading = true;
+    private string _filter = "all";
+
+    private IEnumerable<MyRisRow> Visible => _rows.Where(r => Matches(r, _filter));
+    private int CountFor(string key) => _rows.Count(r => Matches(r, key));
+
+    private static bool Matches(MyRisRow r, string key) => key switch
+    {
+        "all" => true,
+        "closed" => r.Status is "Rejected" or "Cancelled",
+        _ => r.Status == key,
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
+        _rows = await Queries.ListAsync(_user);
+        _loading = false;
+        Live.Changed += OnLiveAsync;
+    }
+
+    // Status changes made by AMS show up without reloading the page.
+    private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
+    {
+        if (_user?.IsOffice != true || !events.Any(e => e.OfficeId == _user.OfficeId)) return;
+        _rows = await Queries.ListAsync(_user);
+        StateHasChanged();
+    }
+
+    public void Dispose() => Live.Changed -= OnLiveAsync;
+}

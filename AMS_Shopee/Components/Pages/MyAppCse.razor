@@ -1,0 +1,212 @@
+@page "/my-app-cse"
+@inject OfficeQueries OfficeQ
+@inject AddToCartFlow Flow
+@inject IJSRuntime JS
+@inject ILogger<MyAppCse> Log
+@inject LiveRefresh Live
+@implements IDisposable
+
+<PageTitle>APP-CSE | AMS</PageTitle>
+
+<section class="page-head">
+    <div class="container-xl">
+        <h1>@(_report is null ? "Your APP-CSE" : $"{_report.OfficeAcronym} APP-CSE, FY {_report.FiscalYear}")</h1>
+        <p>
+            The Annual Procurement Plan for Common-Use Supplies and Equipment that AMS loaded for your office.
+            Compare each quantity with your office's approved APP-CSE.
+        </p>
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    @if (_loading)
+    {
+        <p class="text-secondary py-5 text-center">Loading your APP-CSE…</p>
+    }
+    else if (_user is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-person-lock" aria-hidden="true"></i>
+            <h2>Log in to see your office's APP-CSE</h2>
+            <p>Each office sees only its own allocation.</p>
+            <button type="button" class="btn btn-primary" @onclick="() => Flow.ShowLoginAsync()">Log in</button>
+        </div>
+    }
+    else if (_report is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-shield-lock" aria-hidden="true"></i>
+            <h2>This page is for office accounts</h2>
+            <p>Sign in with an office account to view its APP-CSE.</p>
+        </div>
+    }
+    else
+    {
+        <div class="appcse-toolbar no-print">
+            <div class="appcse-search">
+                <i class="bi bi-search" aria-hidden="true"></i>
+                <input autocomplete="off" type="search" class="form-control" placeholder="Filter by item or stock number"
+                       aria-label="Filter items" @bind="_filter" @bind:event="oninput" />
+            </div>
+            @if (_report.AvailableYears.Count > 1)
+            {
+                <label class="appcse-year">
+                    <span>Fiscal year</span>
+                    <select class="form-select" value="@_report.FiscalYear" @onchange="OnYearChanged">
+                        @foreach (var y in _report.AvailableYears)
+                        {
+                            <option value="@y">@y</option>
+                        }
+                    </select>
+                </label>
+            }
+            <button type="button" class="btn btn-outline-primary" @onclick="PrintAsync">
+                <i class="bi bi-printer me-1" aria-hidden="true"></i> Print
+            </button>
+        </div>
+
+        @if (_report.Rows.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-clipboard-x" aria-hidden="true"></i>
+                <h2>No APP-CSE loaded for FY @_report.FiscalYear</h2>
+                <p>AMS hasn't uploaded your office's allocation yet. Coordinate with AMS if your APP-CSE was already approved.</p>
+            </div>
+        }
+        else
+        {
+            <p class="appcse-summary">
+                <strong>@_report.Rows.Count items</strong> in your plan, estimated at
+                <strong>₱@_report.EstimatedTotal.ToString("N2")</strong> using current catalog prices.
+                @if (UsedUpCount > 0)
+                {
+                    <span> @UsedUpCount @(UsedUpCount == 1 ? "item has" : "items have") no remaining balance.</span>
+                }
+            </p>
+
+            <div class="panel appcse-panel">
+                <div class="table-responsive">
+                    <table class="table appcse-table align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th scope="col">Stock no.</th>
+                                <th scope="col">Item</th>
+                                <th scope="col">Unit</th>
+                                <th scope="col" class="t-num">Q1</th>
+                                <th scope="col" class="t-num">Q2</th>
+                                <th scope="col" class="t-num">Q3</th>
+                                <th scope="col" class="t-num">Q4</th>
+                                <th scope="col" class="t-num is-key">APP-CSE total</th>
+                                <th scope="col" class="t-num">Issued</th>
+                                <th scope="col" class="t-num">Pending</th>
+                                <th scope="col" class="t-num is-key">Remaining</th>
+                                <th scope="col" class="t-num">Unit price</th>
+                                <th scope="col" class="t-num">Est. cost</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var r in VisibleRows)
+                            {
+                                <tr @key="r.ItemId">
+                                    <td class="text-nowrap">@r.StockNo</td>
+                                    <td>
+                                        <span class="appcse-item">@r.Name</span>
+                                        @if (!string.IsNullOrWhiteSpace(r.Specifications))
+                                        {
+                                            <span class="appcse-specs">@r.Specifications</span>
+                                        }
+                                    </td>
+                                    <td>@r.Unit</td>
+                                    <td class="t-num">@Q(r.Q1)</td>
+                                    <td class="t-num">@Q(r.Q2)</td>
+                                    <td class="t-num">@Q(r.Q3)</td>
+                                    <td class="t-num">@Q(r.Q4)</td>
+                                    <td class="t-num is-key">@r.Allocated</td>
+                                    <td class="t-num">@r.Issued</td>
+                                    <td class="t-num">@r.Pending</td>
+                                    <td class="t-num is-key @(r.Remaining == 0 ? "is-zero" : "")">@r.Remaining</td>
+                                    <td class="t-num">@r.UnitPrice.ToString("N2")</td>
+                                    <td class="t-num">@r.EstimatedCost.ToString("N2")</td>
+                                </tr>
+                            }
+                            @if (!VisibleRows.Any())
+                            {
+                                <tr><td colspan="13" class="text-center text-secondary py-4">No items match “@_filter”.</td></tr>
+                            }
+                        </tbody>
+                        <tfoot>
+                            <tr>
+                                <th colspan="12" scope="row" class="text-end">Estimated total</th>
+                                <th class="t-num">₱@_report.EstimatedTotal.ToString("N2")</th>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <aside class="appcse-help">
+                <i class="bi bi-info-circle" aria-hidden="true"></i>
+                <div>
+                    <p class="mb-1"><strong>How to read this.</strong> Issued is what AMS has already released to your office. Pending is reserved by requisitions waiting for approval. Remaining is what you can still request this year.</p>
+                    <p class="mb-0"><strong>Something doesn't match?</strong> Coordinate with AMS and bring a copy of your approved APP-CSE so they can correct the figures before you file more requests.</p>
+                </div>
+            </aside>
+        }
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private CurrentUser? _user;
+    private AppCseReport? _report;
+    private bool _loading = true;
+    private string _filter = "";
+
+    private IEnumerable<AppCseRow> VisibleRows => string.IsNullOrWhiteSpace(_filter)
+        ? _report!.Rows
+        : _report!.Rows.Where(r =>
+            r.Name.Contains(_filter.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            r.StockNo.Contains(_filter.Trim(), StringComparison.OrdinalIgnoreCase) ||
+            (r.Specifications?.Contains(_filter.Trim(), StringComparison.OrdinalIgnoreCase) ?? false));
+
+    private int UsedUpCount => _report?.Rows.Count(r => r.Remaining == 0) ?? 0;
+
+    private static string Q(uint? q) => q?.ToString() ?? "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
+        await LoadAsync(null);
+        _loading = false;
+        Live.Changed += OnLiveAsync;
+    }
+
+    // Issued and pending figures update when AMS approves or an RIS is cancelled.
+    private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
+    {
+        if (_user?.IsOffice != true || _report is null || !events.Any(e => e.OfficeId == _user.OfficeId)) return;
+        await LoadAsync(_report.FiscalYear);
+        StateHasChanged();
+    }
+
+    public void Dispose() => Live.Changed -= OnLiveAsync;
+
+    private async Task LoadAsync(ushort? year)
+    {
+        try
+        {
+            _report = await OfficeQ.GetAppCseAsync(_user, year);
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "APP-CSE failed to load");
+            _report = null;
+        }
+    }
+
+    private Task OnYearChanged(ChangeEventArgs e) =>
+        ushort.TryParse(e.Value?.ToString(), out var y) ? LoadAsync(y) : Task.CompletedTask;
+
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+}

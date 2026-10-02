@@ -7,16 +7,24 @@
 @inject ModalService Modal
 @inject NavigationManager Nav
 @inject ILogger<Home> Log
+@inject ToastService Toast
+@inject LiveRefresh Live
 
 <PageTitle>Office supplies | AMS</PageTitle>
 
 <section class="catalog-hero">
     <div class="container-xl">
         <h1 class="catalog-title">What supplies does your office need?</h1>
-        <p class="catalog-lede">@HeroLine</p>
+        <p class="catalog-lede">
+            @HeroLine
+            @if (_isOffice)
+            {
+                <a class="hero-link" href="my-app-cse">View your full APP-CSE</a>
+            }
+        </p>
         <div class="catalog-search" role="search">
             <i class="bi bi-search" aria-hidden="true"></i>
-            <input type="search" aria-label="Search supplies"
+            <input autocomplete="off" type="search" aria-label="Search supplies"
                    placeholder="Search by item, specification or stock number"
                    value="@_search" @oninput="OnSearchInput" />
         </div>
@@ -98,6 +106,7 @@
     [SupplyParameterFromQuery(Name = "login")] public string? LoginStatus { get; set; }
     [SupplyParameterFromQuery(Name = "add")]   public int? AddItemId { get; set; }
     [SupplyParameterFromQuery(Name = "qty")]   public int? AddQty { get; set; }
+    [SupplyParameterFromQuery(Name = "password")] public string? PasswordStatus { get; set; }
 
     private CurrentUser? _user;
     private bool _isOffice;
@@ -130,6 +139,7 @@
         _isOffice = _user?.IsOffice == true;
         _officeAcronym = state?.User.FindFirst("office_acronym")?.Value;
         Cart.Changed += OnCartChanged;
+        Live.Changed += OnLiveAsync;
 
         try
         {
@@ -147,6 +157,13 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
+
+        if (PasswordStatus == "changed")
+        {
+            ClearQuery();
+            Toast.Show("Password changed. Use the new password from now on.");
+            return;
+        }
 
         // Coming back from a failed login: reopen the modal with the reason.
         if (LoginStatus is "failed" or "locked")
@@ -172,7 +189,7 @@
     private void ClearQuery() =>
         Nav.NavigateTo(Nav.GetUriWithQueryParameters(new Dictionary<string, object?>
         {
-            ["login"] = null, ["add"] = null, ["qty"] = null,
+            ["login"] = null, ["add"] = null, ["qty"] = null, ["password"] = null,
         }), replace: true);
 
     private async Task ReloadItemsAsync() =>
@@ -214,8 +231,18 @@
         StateHasChanged();
     });
 
+    // Warehouse stock and balances change when AMS approves a requisition.
+    private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
+    {
+        if (_loadError || !events.Any(e => e.ToStatus is "ApprovedForIssuance" or "Cancelled" or "PendingApproval")) return;
+        await ReloadItemsAsync();
+        await ReloadBalancesAsync();
+        StateHasChanged();
+    }
+
     public void Dispose()
     {
+        Live.Changed -= OnLiveAsync;
         Cart.Changed -= OnCartChanged;
         _searchCts?.Cancel();
         _searchCts?.Dispose();

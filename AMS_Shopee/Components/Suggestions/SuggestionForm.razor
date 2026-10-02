@@ -2,25 +2,26 @@
 @inject CatalogService CatalogSvc
 @inject AddToCartFlow Flow
 @inject ToastService Toast
+@inject ModalService Modal
 
 <p class="text-secondary">Tell AMS what your office needs. Suggestions are reviewed when the next APP-CSE is prepared.</p>
 
 <div class="mb-3">
     <label class="form-label" for="sg-item">Item name <span class="text-danger" aria-hidden="true">*</span></label>
-    <input id="sg-item" class="form-control" maxlength="200" placeholder="Example: Whiteboard marker, black"
+    <input autocomplete="off" id="sg-item" class="form-control" maxlength="200" placeholder="Example: Whiteboard marker, black"
            @bind="_m.ItemName" @bind:event="oninput" />
 </div>
 <div class="mb-3">
     <label class="form-label" for="sg-desc">Description or specifications</label>
-    <textarea id="sg-desc" class="form-control" rows="2" maxlength="2000" @bind="_m.Description"></textarea>
+    <textarea autocomplete="off" id="sg-desc" class="form-control" rows="2" maxlength="2000" @bind="_m.Description"></textarea>
 </div>
 <div class="mb-3">
     <label class="form-label" for="sg-why">Why does your office need it?</label>
-    <textarea id="sg-why" class="form-control" rows="2" maxlength="2000" @bind="_m.Justification"></textarea>
+    <textarea autocomplete="off" id="sg-why" class="form-control" rows="2" maxlength="2000" @bind="_m.Justification"></textarea>
 </div>
 <div class="mb-3">
     <label class="form-label" for="sg-qty">Estimated quantity per year</label>
-    <input id="sg-qty" type="number" min="1" class="form-control" style="max-width: 12rem" @bind="_m.EstimatedAnnualQty" />
+    <input autocomplete="off" id="sg-qty" type="number" min="1" class="form-control" style="max-width: 12rem" @bind="_m.EstimatedAnnualQty" />
 </div>
 
 @if (_isGuest)
@@ -28,11 +29,11 @@
     <div class="row g-3 mb-3">
         <div class="col-sm-6">
             <label class="form-label" for="sg-name">Your name</label>
-            <input id="sg-name" class="form-control" maxlength="150" @bind="_m.SubmitterName" />
+            <input autocomplete="off" id="sg-name" class="form-control" maxlength="150" @bind="_m.SubmitterName" />
         </div>
         <div class="col-sm-6">
             <label class="form-label" for="sg-email">Email (optional)</label>
-            <input id="sg-email" type="email" class="form-control" maxlength="100" @bind="_m.SubmitterEmail" />
+            <input autocomplete="off" id="sg-email" type="email" class="form-control" maxlength="100" @bind="_m.SubmitterEmail" />
         </div>
     </div>
 }
@@ -67,6 +68,11 @@
 
     private async Task SendAsync()
     {
+        var confirmed = await Modal.ConfirmAsync("Send this suggestion?",
+            $"AMS will review “{_m.ItemName.Trim()}” when preparing the next APP-CSE.",
+            "Send suggestion", "Keep editing", ModalVariant.Info);
+        if (!confirmed) return;
+
         _busy = true; _error = null;
         try
         {

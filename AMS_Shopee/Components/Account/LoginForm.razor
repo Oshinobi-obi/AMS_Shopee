@@ -1,7 +1,7 @@
 @* Login modal content. A plain HTML form post (not an interactive handler),
    because only a normal HTTP request can set the auth cookie. *@
 
-<form method="post" action="/account/login" class="login-form">
+<form autocomplete="off" method="post" action="/account/login" class="login-form">
     <AntiforgeryToken />
     <input type="hidden" name="ReturnUrl" value="@ReturnUrl" />
     @if (PendingItemId is not null)
@@ -9,6 +9,8 @@
         <input type="hidden" name="PendingItemId" value="@PendingItemId" />
         <input type="hidden" name="PendingQty" value="@PendingQty" />
     }
+
+    <img class="login-seal" src="images/deped-ncr-seal.png" alt="" width="72" height="72" />
 
     @if (!string.IsNullOrEmpty(Message))
     {
@@ -22,12 +24,12 @@
     <div class="mb-3">
         <label for="login-username" class="form-label">Office username</label>
         <input id="login-username" name="Username" class="form-control form-control-lg"
-               autocomplete="username" autocapitalize="off" spellcheck="false" required />
+               autocomplete="off" autocapitalize="off" spellcheck="false" required />
     </div>
     <div class="mb-4">
         <label for="login-password" class="form-label">Password</label>
         <input id="login-password" name="Password" type="password" class="form-control form-control-lg"
-               autocomplete="current-password" required />
+               autocomplete="off" required />
     </div>
 
     <button type="submit" class="btn btn-primary btn-lg w-100">Log in</button>

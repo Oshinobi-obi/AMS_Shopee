@@ -43,7 +43,7 @@
             @if (Options.ShowTextInput)
             {
                 <label class="form-label am-input-label" for="@($"m-input-{Instance.Id}")">@Options.InputLabel</label>
-                <textarea id="@($"m-input-{Instance.Id}")" class="form-control" rows="4"
+                <textarea autocomplete="off" id="@($"m-input-{Instance.Id}")" class="form-control" rows="4"
                           maxlength="@Options.InputMaxLength"
                           placeholder="@Options.InputPlaceholder"
                           @bind="_text" @bind:event="oninput" disabled="@_busy"></textarea>

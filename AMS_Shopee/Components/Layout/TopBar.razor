@@ -1,11 +1,15 @@
 @implements IDisposable
 @inject CartState Cart
 @inject AddToCartFlow Flow
+@inject ModalService Modal
+@inject IJSRuntime JS
 
 <header class="topbar">
     <div class="container-xl topbar-inner">
-        <a class="brand" href="/">
-            <span class="brand-mark" aria-hidden="true"><i class="bi bi-box-seam"></i></span>
+        <a class="brand" href="/" aria-label="AMS Supplies home">
+            <span class="brand-pill">
+                <img src="images/one-ncr-stronger-together.png" alt="DepEd NCR, One NCR Stronger Together" width="119" height="38" />
+            </span>
             <span class="brand-text">
                 <strong>AMS Supplies</strong>
                 <small>Asset Management Section</small>
@@ -17,22 +21,30 @@
                 <Authorized>
                     @if (_user?.IsOffice == true)
                     {
-                        <a class="topbar-cart" href="/cart" aria-label="@($"Cart, {Cart.Count} items")">
+                        <NavLink class="topbar-link" href="my-requisitions" title="My requisitions">
+                            <i class="bi bi-receipt" aria-hidden="true"></i>
+                            <span class="d-none d-lg-inline">My requests</span>
+                        </NavLink>
+                        <NavLink class="topbar-link" href="my-app-cse" title="My office's APP-CSE">
+                            <i class="bi bi-clipboard-data" aria-hidden="true"></i>
+                            <span class="d-none d-lg-inline">My APP-CSE</span>
+                        </NavLink>
+                        <NavLink class="topbar-link" href="cart" aria-label="@($"Cart, {Cart.Count} items")">
                             <i class="bi bi-cart3" aria-hidden="true"></i>
                             <span class="d-none d-sm-inline">Cart</span>
                             @if (Cart.Count > 0)
                             {
                                 <span class="cart-count">@Cart.Count</span>
                             }
-                        </a>
+                        </NavLink>
                     }
-                    <span class="topbar-user">
+                    <NavLink class="topbar-link topbar-user" href="change-password" title="Change password">
                         <i class="bi bi-person-circle" aria-hidden="true"></i>
                         <span class="d-none d-md-inline">@context.User.Identity?.Name</span>
-                    </span>
-                    <form method="post" action="/account/logout" class="m-0">
+                    </NavLink>
+                    <form autocomplete="off" method="post" action="/account/logout" class="m-0" @ref="_logoutForm">
                         <AntiforgeryToken />
-                        <button type="submit" class="btn btn-sm topbar-btn">Log out</button>
+                        <button type="button" class="btn btn-sm topbar-btn" @onclick="ConfirmLogoutAsync">Log out</button>
                     </form>
                 </Authorized>
                 <NotAuthorized>
@@ -54,6 +66,17 @@
         if (AuthState is not null) _user = CurrentUser.From((await AuthState).User);
         Cart.Changed += OnCartChanged;
         await Cart.RefreshAsync();
+    }
+
+    private ElementReference _logoutForm;
+
+    private async Task ConfirmLogoutAsync()
+    {
+        var message = _user?.IsOffice == true
+            ? "You'll need to log in again to request supplies. Items in your cart stay saved."
+            : "You'll need to log in again to continue.";
+        if (await Modal.ConfirmAsync("Log out?", message, "Log out", "Stay logged in", ModalVariant.Warning))
+            await JS.InvokeVoidAsync("ams.submitForm", _logoutForm);
     }
 
     private void OnCartChanged() => _ = InvokeAsync(StateHasChanged);

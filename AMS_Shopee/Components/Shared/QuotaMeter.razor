@@ -15,6 +15,7 @@ else
             <div><dt>Requested to date</dt><dd>@Balance.RequestedToDate</dd></div>
             <div><dt>Remaining</dt><dd>@Balance.Remaining</dd></div>
         </dl>
+        <p class="quota-summary"><strong>@Balance.Remaining</strong> of @Balance.Allocated left in APP-CSE</p>
         <div class="quota-bar" role="progressbar" aria-label="APP-CSE used"
              aria-valuemin="0" aria-valuemax="@Balance.Allocated" aria-valuenow="@Balance.RequestedToDate">
             <span style="width:@(UsedPercent)%"></span>

@@ -1,0 +1,98 @@
+@* Live updates for offices: refreshes open pages when AMS acts on a requisition
+   and announces it with a sound, a toast and (in the background) a desktop
+   notification. Everyone's catalog also refreshes when stock changes. *@
+@implements IDisposable
+@inject RisEventFeed Feed
+@inject LiveRefresh Refresh
+@inject ToastService Toast
+@inject IJSRuntime JS
+
+@if (_showPrompt)
+{
+    <div class="notify-prompt" role="region" aria-label="Notifications">
+        <div class="container-xl notify-prompt-inner">
+            <i class="bi bi-bell-fill" aria-hidden="true"></i>
+            <span>Turn on notifications so you'll know right away when AMS approves or issues your requisitions.</span>
+            <button type="button" class="btn btn-sm btn-accent" @onclick="EnableAsync">Turn on</button>
+            <button type="button" class="btn btn-sm notify-later" @onclick="() => _showPrompt = false">Not now</button>
+        </div>
+    </div>
+}
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private const string ApprovedSound = "sounds/Shopee_Approved.mp3";
+    private const string IssuedSound = "sounds/Shopee_Issued.mp3";
+
+    private CurrentUser? _user;
+    private bool _ready, _showPrompt;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
+        Feed.Changed += OnFeed;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            if (_user?.IsOffice == true)
+            {
+                await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { ApprovedSound, IssuedSound });   // (object): send ONE array, not one argument per sound
+                _showPrompt = await JS.InvokeAsync<string>("amsLive.permission") == "default";
+            }
+            _ready = true;
+            if (_showPrompt) StateHasChanged();
+        }
+        catch (JSDisconnectedException) { }
+    }
+
+    private void OnFeed(IReadOnlyList<RisEvent> events) => _ = InvokeAsync(async () =>
+    {
+        if (!_ready) return;
+        await Refresh.RaiseAsync(events);   // pages reload quietly (stock, balances, statuses)
+
+        if (_user?.IsOffice != true) return;
+        try
+        {
+            foreach (var e in events.Where(e => e.OfficeId == _user.OfficeId))
+            {
+                var url = $"/my-requisitions/{e.RisId}";
+                switch (e.ToStatus)
+                {
+                    case "ApprovedForIssuance":
+                        Toast.Show($"RIS {e.RisNo} is approved. Print it, sign it and bring it to AMS.");
+                        await JS.InvokeVoidAsync("amsLive.notify", "Requisition approved",
+                            $"RIS {e.RisNo} is approved. Print it, sign it and bring it to AMS to pick up the items.", ApprovedSound, url);
+                        break;
+                    case "Issued":
+                        Toast.Show($"RIS {e.RisNo} is issued. The signed copy is in My requests.");
+                        await JS.InvokeVoidAsync("amsLive.notify", "Items issued",
+                            $"RIS {e.RisNo} is issued. The signed copy is saved in My requests.", IssuedSound, url);
+                        break;
+                    case "Rejected":
+                        Toast.Show($"RIS {e.RisNo} was rejected. Open it to see the reason.", ModalVariant.Warning);
+                        await JS.InvokeVoidAsync("amsLive.notify", "Requisition rejected",
+                            $"RIS {e.RisNo} was rejected by AMS. Open it to see the reason.", null, url);
+                        break;
+                }
+            }
+        }
+        catch (JSDisconnectedException) { }
+    });
+
+    private async Task EnableAsync()
+    {
+        _showPrompt = false;
+        var result = await JS.InvokeAsync<string>("amsLive.requestPermission");
+        Toast.Show(result == "granted"
+            ? "Notifications are on."
+            : "Notifications are off. You can turn them on later in the browser's site settings.",
+            result == "granted" ? ModalVariant.Success : ModalVariant.Info);
+    }
+
+    public void Dispose() => Feed.Changed -= OnFeed;
+}

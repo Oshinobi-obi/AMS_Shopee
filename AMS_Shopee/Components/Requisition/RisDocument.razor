@@ -48,10 +48,10 @@
                     <td class="t-center">@line.StockNo</td>
                     <td class="t-center">@line.Unit</td>
                     <td>@line.Description</td>
-                    <td class="t-num">@line.RequestedQty</td>
+                    <td class="t-center">@line.RequestedQty</td>
                     <td class="t-center">@(line.StockAvailable == true ? "✓" : "")</td>
                     <td class="t-center">@(line.StockAvailable == false ? "✓" : "")</td>
-                    <td class="t-num">@line.IssuedQty</td>
+                    <td class="t-center">@line.IssuedQty</td>
                     <td>@line.Remarks</td>
                 </tr>
             }

@@ -26,7 +26,7 @@
             </p>
             @if (Item.Supplier is not null)
             {
-                <p class="item-meta">Supplier: @Item.Supplier</p>
+                <p class="item-meta item-supplier">Supplier: @Item.Supplier</p>
             }
         </div>
     </button>
@@ -37,7 +37,7 @@
     }
 
     <div class="item-actions">
-        <button type="button" class="btn btn-primary w-100" @onclick="OnAdd" disabled="@AddDisabled">
+        <button type="button" class="btn btn-accent w-100" @onclick="OnAdd" disabled="@AddDisabled">
             <i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to cart
         </button>
     </div>

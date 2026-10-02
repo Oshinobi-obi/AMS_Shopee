@@ -1,0 +1,103 @@
+@* Dropdown for choosing a person. Replaces a native <select> so the option list is
+   exactly as wide as the field and long positions wrap instead of spilling out.
+   Usage: <PersonnelPicker Id="x" Options="list" @bind-Value="stringId" Placeholder="..." /> *@
+
+<div class="picker @(_open ? "is-open" : "")">
+    <button type="button" id="@Id" class="form-select picker-toggle"
+            aria-haspopup="listbox" aria-expanded="@(_open ? "true" : "false")"
+            @onclick="ToggleAsync">
+        @if (Selected is null)
+        {
+            <span class="picker-placeholder">@Placeholder</span>
+        }
+        else
+        {
+            <span class="picker-name">@Selected.FullName</span><span class="picker-sep">, </span><span class="picker-position">@Selected.Position</span>
+        }
+    </button>
+
+    @if (_open)
+    {
+        <div class="picker-backdrop" @onclick="Close"></div>
+        <ul class="picker-list" role="listbox" tabindex="-1" @ref="_list"
+            aria-labelledby="@Id" aria-activedescendant="@($"{Id}-opt-{_active}")"
+            @onkeydown="OnKeyDownAsync" @onkeydown:preventDefault="true">
+            <li id="@($"{Id}-opt-0")" role="option" aria-selected="@(Selected is null ? "true" : "false")"
+                class="picker-option @(_active == 0 ? "is-active" : "") @(Selected is null ? "is-selected" : "")"
+                @onclick="() => ChooseAsync(null)" @onmouseenter="() => _active = 0">
+                <span class="picker-placeholder">@Placeholder</span>
+            </li>
+            @for (var i = 0; i < Options.Count; i++)
+            {
+                var option = Options[i];
+                var index = i + 1;
+                <li id="@($"{Id}-opt-{index}")" role="option" @key="option.Id"
+                    aria-selected="@(option.Id == Selected?.Id ? "true" : "false")"
+                    class="picker-option @(_active == index ? "is-active" : "") @(option.Id == Selected?.Id ? "is-selected" : "")"
+                    @onclick="() => ChooseAsync(option)" @onmouseenter="() => _active = index">
+                    <span class="picker-name">@option.FullName</span>
+                    <span class="picker-position">@option.Position</span>
+                </li>
+            }
+        </ul>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Id { get; set; } = "";
+    [Parameter, EditorRequired] public IReadOnlyList<PersonnelOption> Options { get; set; } = [];
+    [Parameter] public string Value { get; set; } = "";              // personnel id as text, "" = none
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Select a person";
+
+    private ElementReference _list;
+    private bool _open, _focusList;
+    private int _active;   // 0 = placeholder row, 1..n = Options
+
+    private PersonnelOption? Selected => Options.FirstOrDefault(o => o.Id.ToString() == Value);
+
+    private void ToggleAsync()
+    {
+        if (_open) { Close(); return; }
+        _open = true;
+        _focusList = true;
+        _active = Selected is null ? 0 : Options.ToList().FindIndex(o => o.Id == Selected.Id) + 1;
+    }
+
+    private void Close() => _open = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_focusList && _open)
+        {
+            _focusList = false;
+            await _list.FocusAsync();   // arrow keys work straight away
+        }
+    }
+
+    private async Task ChooseAsync(PersonnelOption? option)
+    {
+        _open = false;
+        await ValueChanged.InvokeAsync(option?.Id.ToString() ?? "");
+    }
+
+    private async Task OnKeyDownAsync(KeyboardEventArgs e)
+    {
+        var last = Options.Count;
+        switch (e.Key)
+        {
+            case "ArrowDown": _active = Math.Min(last, _active + 1); break;
+            case "ArrowUp":   _active = Math.Max(0, _active - 1); break;
+            case "Home":      _active = 0; break;
+            case "End":       _active = last; break;
+            case "Enter":
+            case " ":
+                await ChooseAsync(_active == 0 ? null : Options[_active - 1]);
+                break;
+            case "Escape":
+            case "Tab":
+                Close();
+                break;
+        }
+    }
+}
