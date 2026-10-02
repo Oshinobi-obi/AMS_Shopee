@@ -63,7 +63,7 @@ public sealed class RequisitionService(
     private const string Approved = "ApprovedForIssuance";
     private const string Rejected = "Rejected";
 
-    private static readonly TimeZoneInfo Manila = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
+    private static readonly TimeZoneInfo Manila = AMS_Shopee.Services.PhZone.Manila;
     private DateTime NowPh => TimeZoneInfo.ConvertTime(clock.GetUtcNow(), Manila).DateTime;
     public ushort FiscalYear => (ushort)NowPh.Year;
 

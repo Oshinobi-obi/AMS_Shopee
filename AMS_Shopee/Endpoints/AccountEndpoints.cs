@@ -20,7 +20,7 @@ public static class AccountEndpoints
     private static readonly TimeSpan LockFor = TimeSpan.FromMinutes(15);
     private const int TargetBcryptCost = 12;
     // Same convention as RequisitionService: all DB timestamps are Philippine time.
-    private static readonly TimeZoneInfo Manila = TimeZoneInfo.FindSystemTimeZoneById("Asia/Manila");
+    private static readonly TimeZoneInfo Manila = AMS_Shopee.Services.PhZone.Manila;
 
     public sealed class LoginForm
     {

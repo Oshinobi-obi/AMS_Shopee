@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.DataProtection;
 using AMS_Shopee.Components;
 using AMS_Shopee.Components.Shared.Modals;
 using AMS_Shopee.Data;
@@ -9,6 +10,12 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Sign-in cookies are encrypted with keys. On a web host the default key location
+// may not survive restarts (everyone gets logged out), so keep them in the site's App_Data.
+builder.Services.AddDataProtection()
+    .SetApplicationName("AMS_Supplies")
+    .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(builder.Environment.ContentRootPath, "App_Data", "keys")));
 
 // ── Blazor ──────────────────────────────────────────────────────────────
 builder.Services.AddRazorComponents()
