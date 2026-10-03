@@ -335,6 +335,14 @@ h1:focus { outline: none; }
 .qty-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
 /* ---------- Login modal ---------- */
+.password-group { display: flex; gap: .5rem; }
+.password-group .form-control { flex: 1; }
+.btn-eye {
+    flex: none; width: 48px; display: grid; place-items: center;
+    border: 1px solid var(--line); border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 1.1rem;
+}
+.btn-eye:hover { color: var(--brand); border-color: var(--brand); }
+.btn-eye:focus-visible { outline: 3px solid rgb(11 47 168 / .35); outline-offset: 2px; }
 .login-seal { display: block; width: 72px; height: 72px; margin: 0 auto 1rem; }
 
 /* ---------- Empty and error states ---------- */
@@ -644,3 +652,127 @@ h1:focus { outline: none; }
     .blazor-error-boundary::after {
         content: "An error has occurred."
     }
+
+/* =====================================================================
+   Theme switch + Philippine-time clock
+   ===================================================================== */
+.theme-toggle {
+    display: inline-grid; place-items: center; width: 38px; height: 38px; flex: none;
+    border-radius: 10px; border: 1px solid rgb(255 255 255 / .35); background: none;
+    color: var(--gold); font-size: 1.05rem; transition: background-color 150ms ease;
+}
+.theme-toggle:hover { background: rgb(255 255 255 / .12); }
+.theme-toggle:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.ph-clock { display: inline-flex; align-items: center; gap: .5rem; color: #fff; font-variant-numeric: tabular-nums; }
+.ph-clock > .bi { color: var(--gold); font-size: 1.1rem; }
+.ph-clock-text { display: flex; flex-direction: column; line-height: 1.15; }
+.ph-clock-time { font-weight: 700; white-space: nowrap; }
+.ph-clock-date { font-size: .75rem; opacity: .8; white-space: nowrap; }
+.topbar-clock { margin-left: auto; margin-right: .5rem; padding: .25rem .75rem; border-left: 1px solid rgb(255 255 255 / .2); }
+
+/* =====================================================================
+   Dark mode (html[data-theme="dark"]) — navy bars, gold and the
+   RIS paper stay the same; surfaces and text switch to dark.
+   ===================================================================== */
+html[data-theme="dark"] {
+    --ink: #e7e9f4;
+    --muted: #9ba3bf;
+    --line: #2b3354;
+    --surface: #151a30;
+    --canvas: #0c1022;
+    --brand: #5b7cff;
+    --brand-deep: #4462ec;
+    --brand-tint: #1d2650;
+    --price: #f5b041;
+    --ok: #4cc38a;   --ok-tint: #12301f;
+    --warn: #f0b252; --warn-tint: #33260f;
+    --bad: #ff7b72;  --bad-tint: #3a1715;
+    color-scheme: dark;
+}
+html[data-theme="dark"] body { background: var(--canvas); color: var(--ink); }
+html[data-theme="dark"] .text-secondary { color: var(--muted) !important; }
+html[data-theme="dark"] .btn-light { --bs-btn-bg: #222844; --bs-btn-border-color: #222844; --bs-btn-color: var(--ink); --bs-btn-hover-bg: #2b3354; --bs-btn-hover-border-color: #2b3354; --bs-btn-hover-color: #fff; }
+html[data-theme="dark"] .btn-accent { --bs-btn-disabled-bg: #222844; --bs-btn-disabled-border-color: #222844; --bs-btn-disabled-color: #7d86a3; }
+html[data-theme="dark"] .catalog-search input { background: var(--surface); color: var(--ink); border-color: var(--line); }
+html[data-theme="dark"] .catalog-search input::placeholder { color: var(--muted); }
+html[data-theme="dark"] .item-card.is-out .item-media { background: #1b2036; color: #6f7894; }
+html[data-theme="dark"] .item-card.is-skeleton .item-media,
+html[data-theme="dark"] .item-card.is-skeleton .item-body span { background: #1f2540; }
+html[data-theme="dark"] .quota { background: #121628; }
+html[data-theme="dark"] .quota-bar { background: #2b3354; }
+html[data-theme="dark"] .quota-none { background: #1a1f36; }
+html[data-theme="dark"] .qty-stepper { background: var(--surface); }
+html[data-theme="dark"] .qty-stepper button { background: #1f2540; color: var(--ink); }
+html[data-theme="dark"] .qty-stepper input { background: var(--surface); color: var(--ink); }
+html[data-theme="dark"] .cart-line.is-highlight,
+html[data-theme="dark"] .appcse-table tbody tr:hover td { background: #2a2410; }
+html[data-theme="dark"] .cart-total,
+html[data-theme="dark"] .appcse-table td.is-key { background: #121628; }
+html[data-theme="dark"] .appcse-table tfoot th { background: #1a1f36; }
+html[data-theme="dark"] .appcse-table { --bs-table-bg: var(--surface); --bs-table-color: var(--ink); }
+html[data-theme="dark"] .appcse-help,
+html[data-theme="dark"] .callout-box { background: #2a2410; border-color: #5a4a1a; }
+html[data-theme="dark"] .callout-box.is-bad { border-color: #6b2a25; }
+html[data-theme="dark"] .status-pill.is-pending { background: #33280e; color: #f5c25a; }
+html[data-theme="dark"] .status-pill.is-cancelled { background: #22283f; border-color: #2b3354; }
+html[data-theme="dark"] .chip-count { background: #2b3354; color: var(--ink); }
+html[data-theme="dark"] .ris-scroll { background: #0f1428; }
+html[data-theme="dark"] .picker-option.is-active { background: #232c5c; }
+html[data-theme="dark"] .am-close:hover { background: #222844; }
+html[data-theme="dark"] .am-message { color: var(--muted); }
+html[data-theme="dark"] .empty-state > .bi { color: var(--muted); }
+/* The RIS stays black-on-white: it's a paper form */
+html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
+
+/* Printing always uses the light colours, whatever the screen theme */
+@media print {
+    html[data-theme="dark"] {
+        --ink: #141a3a; --muted: #565f7a; --line: #d8dcea; --surface: #ffffff; --canvas: #ffffff;
+        --brand: #0b2fa8; --brand-tint: #e9ecfa;
+    }
+    html[data-theme="dark"] body { background: #fff; color: #141a3a; }
+    .theme-toggle, .ph-clock { display: none !important; }
+}
+
+/* =====================================================================
+   Small-screen fixes (found by rendering every page from 320 px to 1920 px)
+   ===================================================================== */
+/* Grid and flex children may shrink below their content; long text then wraps or
+   gets "…" instead of pushing the whole page sideways. */
+.cart-layout > *, .req-list > *, .req-main, .cart-info, .slip-column, .cart-column { min-width: 0; }
+
+/* Phones: a tighter top bar so every button fits, down to 320 px wide */
+@media (max-width: 575.98px) {
+    .topbar-inner { gap: .5rem; min-height: 60px; }
+    .brand { flex: none; }                       /* the logo never shrinks under the buttons */
+    .topbar-actions { min-width: 0; margin-left: auto; }
+    .brand-pill { padding: .25rem .6rem; }
+    .brand-pill img { height: 26px; }
+    .topbar-actions { gap: .25rem; }
+    .topbar-link { padding: .35rem .45rem; }
+    .topbar-link .bi { font-size: 1.15rem; }
+    .theme-toggle { width: 34px; height: 34px; font-size: .95rem; }
+    .topbar-btn { padding: .3rem .5rem; }
+    .topbar-btn .logout-text { display: none; }
+}
+@media (max-width: 399.98px) {
+    /* My APP-CSE stays one tap away through "View your full APP-CSE" on the home page */
+    .topbar-link-appcse { display: none; }
+    .topbar-inner { gap: .35rem; }
+    .topbar-actions { gap: .15rem; }
+    .brand-pill { padding: .2rem .5rem; }
+    .brand-pill img { height: 22px; }
+    .topbar-link { padding: .3rem .32rem; }
+    .theme-toggle { width: 32px; height: 32px; }
+    .topbar-btn { padding: .28rem .42rem; }
+    .cart-count { min-width: 1.15rem; height: 1.15rem; font-size: .6875rem; }
+}
+
+/* Signed RIS on phones: many phone browsers can't show a PDF inside a page,
+   so phones get a big "Open" button instead of the embedded viewer. */
+.pdf-open-mobile { display: none; }
+@media (max-width: 767.98px) {
+    .pdf-frame { display: none; }
+    .pdf-open-mobile { display: block; padding: 1.25rem; text-align: center; }
+}

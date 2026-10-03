@@ -24,6 +24,7 @@
 
     private const string ApprovedSound = "sounds/Shopee_Approved.mp3";
     private const string IssuedSound = "sounds/Shopee_Issued.mp3";
+    private const string RejectedSound = "sounds/Shopee_Rejected.mp3";
 
     private CurrentUser? _user;
     private bool _ready, _showPrompt;
@@ -41,7 +42,7 @@
         {
             if (_user?.IsOffice == true)
             {
-                await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { ApprovedSound, IssuedSound });   // (object): send ONE array, not one argument per sound
+                await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { ApprovedSound, IssuedSound, RejectedSound });   // (object): send ONE array, not one argument per sound
                 _showPrompt = await JS.InvokeAsync<string>("amsLive.permission") == "default";
             }
             _ready = true;
@@ -76,7 +77,7 @@
                     case "Rejected":
                         Toast.Show($"RIS {e.RisNo} was rejected. Open it to see the reason.", ModalVariant.Warning);
                         await JS.InvokeVoidAsync("amsLive.notify", "Requisition rejected",
-                            $"RIS {e.RisNo} was rejected by AMS. Open it to see the reason.", null, url);
+                            $"RIS {e.RisNo} was rejected by AMS. Open it to see the reason.", RejectedSound, url);
                         break;
                 }
             }

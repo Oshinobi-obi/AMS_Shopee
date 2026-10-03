@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.RateLimiting;
 // AccountEndpoints.cs — cookie login/logout.
 // An interactive (SignalR) component cannot set a cookie, so the login modal
 // renders a normal <form method="post" action="/account/login"> containing
@@ -29,6 +30,7 @@ public static class AccountEndpoints
         public string? ReturnUrl { get; set; }
         public uint? PendingItemId { get; set; }   // item the guest tried to add
         public int? PendingQty { get; set; }
+        public bool RememberMe { get; set; }       // "Keep me signed in for 7 days"
     }
 
     public static void MapAccountEndpoints(this WebApplication app)
@@ -75,13 +77,13 @@ public static class AccountEndpoints
             });
             await db.SaveChangesAsync();
 
-            await SignInAsync(http, user);
+            await SignInAsync(http, user, f.RememberMe);
 
             // Resume what the guest was doing: the catalog page reads ?add=&qty= and adds the item.
             if (f.PendingItemId is uint itemId)
                 back = Append(back, $"add={itemId}&qty={Math.Max(1, f.PendingQty ?? 1)}");
             return Results.LocalRedirect(back);
-        });
+        }).RequireRateLimiting("login");
 
         // Re-issues the cookie from the database (after a password change).
         group.MapGet("/refresh", async (HttpContext http, IDbContextFactory<AmsDbContext> dbFactory, string? returnUrl) =>
@@ -95,7 +97,9 @@ public static class AccountEndpoints
                 await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.LocalRedirect("/");
             }
-            await SignInAsync(http, user);
+            // Keep the same "Keep me signed in" choice the user made at login
+            var existing = await http.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+            await SignInAsync(http, user, existing.Properties?.IsPersistent ?? false);
             return Results.LocalRedirect(SafeLocal(returnUrl));
         }).RequireAuthorization();
 
@@ -106,7 +110,7 @@ public static class AccountEndpoints
         });
     }
 
-    private static Task SignInAsync(HttpContext http, User user)
+    private static Task SignInAsync(HttpContext http, User user, bool keepSignedIn)
     {
         var claims = new List<Claim>
         {
@@ -117,9 +121,17 @@ public static class AccountEndpoints
             new("office_acronym", user.Office?.OfficeAcronym ?? ""),
             new("can_requisition", user.Office?.CanRequisition == true ? "1" : "0"),
             new("must_change_password", user.RequirePasswordChange ? "1" : "0"),
+            new(AMS_Shopee.Services.Security.SessionGuard.StampClaim, AMS_Shopee.Services.Security.SessionGuard.PasswordStamp(user.PasswordHash)),
         };
         return http.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme,
-            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)));
+            new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
+            new AuthenticationProperties
+            {
+                // Unticked: signed out when the browser closes, or after one workday.
+                // Ticked: stays signed in for 7 days on this computer.
+                IsPersistent = keepSignedIn,
+                ExpiresUtc = keepSignedIn ? DateTimeOffset.UtcNow.AddDays(7) : DateTimeOffset.UtcNow.AddHours(9),
+            });
     }
 
     private static bool PasswordMatches(string password, string hash)

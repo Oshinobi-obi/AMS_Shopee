@@ -157,6 +157,13 @@
                         @if (_ris.HasSignedCopy)
                         {
                             <iframe class="pdf-frame" src="/ris/@_ris.RisId/signed" title="Signed RIS @_ris.RisNo"></iframe>
+                            <div class="pdf-open-mobile">
+                                <i class="bi bi-file-earmark-pdf text-danger" style="font-size: 2.5rem" aria-hidden="true"></i>
+                                <p class="mt-2 mb-3">The signed RIS is ready.</p>
+                                <a class="btn btn-accent btn-lg w-100" href="/ris/@_ris.RisId/signed" target="_blank" rel="noopener">
+                                    <i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i> Open signed RIS
+                                </a>
+                            </div>
                         }
                         else
                         {

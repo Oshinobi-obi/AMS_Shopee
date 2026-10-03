@@ -3,6 +3,47 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
+## =====================================================================
+## AMS Supplies (AMS_Shopee portal) — project-specific rules. Keep these at the top.
+## =====================================================================
+
+# Secrets: connection strings and passwords never go to GitHub.
+# (Local development uses User Secrets, which live outside the project.)
+appsettings.Production.json
+appsettings.Staging.json
+appsettings.*.local.json
+**/appsettings.Production.json
+*.env
+.env
+
+# Files the running site creates: sign-in keys (App_Data/keys) and anything else under App_Data
+**/App_Data/
+
+# Server start-up logs (stdout logging in web.config)
+**/logs/
+*.log
+
+# Database dumps and backups (they contain accounts and personal records).
+# The numbered update scripts in Database/ (001_… to 008_…) ARE tracked: they rebuild the schema.
+*_backup*.sql
+*-backup*.sql
+backup*.sql
+*_dump*.sql
+*-dump*.sql
+pre_*.sql
+ams_stockwatch*.sql
+db64557*.sql
+*.sql.gz
+*.sql.zip
+!**/Database/[0-9][0-9][0-9]_*.sql
+
+# Files downloaded while testing (signed RIS PDFs)
+RIS-*-signed.pdf
+
+# Visual Studio leftovers
+*.csproj.Backup.tmp
+
+
 # User-specific files
 *.rsuser
 *.suo

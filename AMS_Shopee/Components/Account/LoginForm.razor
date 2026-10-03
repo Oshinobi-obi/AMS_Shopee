@@ -26,10 +26,22 @@
         <input id="login-username" name="Username" class="form-control form-control-lg"
                autocomplete="off" autocapitalize="off" spellcheck="false" required />
     </div>
-    <div class="mb-4">
+    <div class="mb-3">
         <label for="login-password" class="form-label">Password</label>
-        <input id="login-password" name="Password" type="password" class="form-control form-control-lg"
-               autocomplete="off" required />
+        <div class="password-group">
+            <input id="login-password" name="Password" type="@(_showPassword ? "text" : "password")" class="form-control form-control-lg"
+                   autocomplete="off" required />
+            <button type="button" class="btn-eye" @onclick="() => _showPassword = !_showPassword"
+                    aria-label="@(_showPassword ? "Hide password" : "Show password")" title="@(_showPassword ? "Hide password" : "Show password")">
+                <i class="bi @(_showPassword ? "bi-eye-slash" : "bi-eye")" aria-hidden="true"></i>
+            </button>
+        </div>
+    </div>
+
+    <div class="form-check mb-4">
+        <input class="form-check-input" type="checkbox" id="login-remember" name="RememberMe" value="true" />
+        <label class="form-check-label" for="login-remember">Keep me signed in for 7 days</label>
+        <div class="form-text mt-0">Only on your office's own computer, never on a shared or borrowed one.</div>
     </div>
 
     <button type="submit" class="btn btn-primary btn-lg w-100">Log in</button>
@@ -41,4 +53,6 @@
     [Parameter] public uint? PendingItemId { get; set; }
     [Parameter] public int PendingQty { get; set; } = 1;
     [Parameter] public string? Message { get; set; }
+
+    private bool _showPassword;
 }

@@ -166,13 +166,16 @@
         }
 
         // Coming back from a failed login: reopen the modal with the reason.
-        if (LoginStatus is "failed" or "locked")
+        if (LoginStatus is "failed" or "locked" or "busy")
         {
             var status = LoginStatus;
             ClearQuery();
-            await Flow.ShowLoginAsync(null, 1, status == "locked"
-                ? "Too many failed attempts. Try again in 15 minutes."
-                : "Incorrect username or password.");
+            await Flow.ShowLoginAsync(null, 1, status switch
+            {
+                "locked" => "Too many failed attempts. Try again in 15 minutes.",
+                "busy" => "Too many sign-in attempts from this computer. Wait 5 minutes, then try again.",
+                _ => "Incorrect username or password.",
+            });
         }
         // Coming back from a successful login that started with "Add to cart".
         else if (AddItemId is > 0 && _user is not null)
