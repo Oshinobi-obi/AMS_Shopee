@@ -761,6 +761,9 @@ public partial class AmsDbContext : DbContext
                 .IsRequired()
                 .HasDefaultValueSql("'1'")
                 .HasColumnName("is_active");
+            entity.Property(e => e.IsPerishable).HasColumnName("is_perishable");
+            entity.Property(e => e.ManufacturedOn).HasColumnType("date").HasColumnName("manufactured_on");
+            entity.Property(e => e.ExpiresOn).HasColumnType("date").HasColumnName("expires_on");
             entity.Property(e => e.ItemName)
                 .HasMaxLength(200)
                 .HasColumnName("item_name");

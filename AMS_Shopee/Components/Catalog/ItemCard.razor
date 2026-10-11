@@ -6,7 +6,7 @@
         <div class="item-media">
             @if (!string.IsNullOrEmpty(Item.ImagePath))
             {
-                <img src="@Item.ImagePath" alt="" loading="lazy" />
+                <img src="@Item.ImagePath" alt="" loading="lazy" decoding="async" />
             }
             else
             {
@@ -22,8 +22,18 @@
             }
             <p class="item-price">₱@Item.UnitPrice.ToString("N2")<span> per @Item.Unit</span></p>
             <p class="item-meta">
-                @(Item.StockOnHand > 0 ? $"{Item.StockOnHand:N0} {Item.Unit} in AMS warehouse" : "None in AMS warehouse")
+                @(Item.StockOnHand > 0 ? $"{Item.StockOnHand:N0} {Item.Unit} in AMS stockroom" : "None in AMS stockroom")
             </p>
+            @if (Item.DaysToExpiry is int days)
+            {
+                <p class="item-dates @Item.ExpiryCss">
+                    @if (Item.ManufacturedOn is { } mfd)
+                    {
+                        <span><b>MFD</b> @mfd.ToString("MMM d, yyyy")</span>
+                    }
+                    <span><b>EXP</b> @Item.ExpiresOn!.Value.ToString("MMM d, yyyy")@(days < 0 ? " (expired)" : "")</span>
+                </p>
+            }
             @if (Item.Supplier is not null)
             {
                 <p class="item-meta item-supplier">Supplier: @Item.Supplier</p>

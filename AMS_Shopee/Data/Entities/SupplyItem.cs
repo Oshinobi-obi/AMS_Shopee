@@ -31,6 +31,13 @@ public partial class SupplyItem
 
     public bool? IsActive { get; set; }
 
+    /// Has an expiration date. EXP is set by AMS; MFD is optional.
+    public bool IsPerishable { get; set; }
+
+    public DateTime? ManufacturedOn { get; set; }
+
+    public DateTime? ExpiresOn { get; set; }
+
     public uint RowVersion { get; set; }
 
     public DateTime CreatedAt { get; set; }

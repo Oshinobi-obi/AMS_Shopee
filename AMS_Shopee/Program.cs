@@ -88,6 +88,7 @@ builder.Services.AddScoped<RequisitionService>();
 builder.Services.AddScoped<CatalogService>();
 builder.Services.AddScoped<OfficeQueries>();
 builder.Services.AddScoped<MyRequisitionQueries>();
+builder.Services.AddScoped<AMS_Shopee.Services.Ui.AnnouncementService>();
 // Live updates: one database watcher for the server, one relay per browser tab
 builder.Services.AddSingleton<AMS_Shopee.Services.Live.RisEventFeed>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<AMS_Shopee.Services.Live.RisEventFeed>());
@@ -129,6 +130,25 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapAccountEndpoints();
 app.MapRisEndpoints();
+// ── Live-update status (open /live/status while signed in) ──────────────────
+// Shows whether the 5-second watcher is running and the last error it met, if any.
+app.MapGet("/live/status", (AMS_Shopee.Services.Live.RisEventFeed feed) =>
+{
+    static string? Ph(DateTime? utc) => utc is { } u ? TimeZoneInfo.ConvertTimeFromUtc(u, AMS_Shopee.Services.PhZone.Manila).ToString("yyyy-MM-dd hh:mm:ss tt") : null;
+    var running = feed.LastCheckUtc is { } last && DateTime.UtcNow - last < TimeSpan.FromSeconds(30);
+    return Results.Json(new
+    {
+        running,
+        meaning = running ? "Live updates are working." : "The watcher has not checked in the last 30 seconds. Restart the site and see lastError.",
+        lastCheck = Ph(feed.LastCheckUtc),
+        lastChange = Ph(feed.LastChangeUtc),
+        lastChangedAreas = feed.LastChangedAreas,
+        lastError = feed.LastError,
+        lastErrorAt = Ph(feed.LastErrorUtc),
+        watching = feed.Signatures.Keys.OrderBy(k => k).ToArray(),
+    });
+}).RequireAuthorization();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

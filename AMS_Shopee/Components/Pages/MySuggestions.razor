@@ -1,0 +1,92 @@
+@page "/my-suggestions"
+@inject LiveRefresh Live
+@implements IDisposable
+@inject MyRequisitionQueries Queries
+@inject AddToCartFlow Flow
+
+<PageTitle>My suggestions | AMS</PageTitle>
+
+<section class="page-head">
+    <div class="container-xl">
+        <a class="hero-link ms-0" href="/my-requisitions"><i class="bi bi-arrow-left" aria-hidden="true"></i> My requisitions</a>
+        <h1 class="mt-2">My suggestions</h1>
+        <p>Supplies your office asked AMS to carry, and what AMS decided.</p>
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    @if (_loading)
+    {
+        <p class="text-secondary py-5 text-center">Loading…</p>
+    }
+    else if (_user is null)
+    {
+        <div class="empty-state">
+            <i class="bi bi-person-lock" aria-hidden="true"></i>
+            <h2>Log in to see your suggestions</h2>
+            <p>Suggestions are listed under the office account that sent them.</p>
+            <button type="button" class="btn btn-primary" @onclick="() => Flow.ShowLoginAsync()">Log in</button>
+        </div>
+    }
+    else if (_items.Count == 0)
+    {
+        <div class="empty-state">
+            <i class="bi bi-lightbulb" aria-hidden="true"></i>
+            <h2>No suggestions yet</h2>
+            <p>Can't find something your office needs? Use the <strong>Suggest a supply</strong> button at the bottom of any page.</p>
+        </div>
+    }
+    else
+    {
+        <div class="req-list">
+            @foreach (var s in _items)
+            {
+                <article class="req-row sug-row" @key="s.Id">
+                    <div class="req-main">
+                        <div class="req-top">
+                            <span class="req-no">@s.ItemName</span>
+                            <span class="status-pill @MyRequisitionQueries.SuggestionCss(s.Status)">@MyRequisitionQueries.SuggestionLabel(s.Status)</span>
+                        </div>
+                        @if (!string.IsNullOrWhiteSpace(s.Description))
+                        {
+                            <p class="req-purpose">@s.Description</p>
+                        }
+                        <p class="req-meta">Sent @s.CreatedAt.ToString("MMM d, yyyy")@(s.ReviewedAt is { } r ? $", answered {r:MMM d, yyyy}" : "")</p>
+                        @if (!string.IsNullOrWhiteSpace(s.Response))
+                        {
+                            <div class="sug-answer"><i class="bi bi-chat-left-text" aria-hidden="true"></i><div><strong>AMS:</strong> @s.Response</div></div>
+                        }
+                    </div>
+                </article>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
+
+    private CurrentUser? _user;
+    private List<MySuggestion> _items = [];
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
+        _items = await Queries.SuggestionsAsync(_user);
+        _loading = false;
+    }
+
+    // Live: when suggestions change on either website, reload without a refresh.
+    private static readonly string[] LiveAreas = ["suggestions"];
+    protected override void OnInitialized() => Live.AreasChanged += OnAreasAsync;
+
+    private async Task OnAreasAsync(IReadOnlySet<string> areas)
+    {
+        if (!areas.Overlaps(LiveAreas)) return;
+        _items = await Queries.SuggestionsAsync(_user);
+        StateHasChanged();
+    }
+
+    public void Dispose() => Live.AreasChanged -= OnAreasAsync;
+}

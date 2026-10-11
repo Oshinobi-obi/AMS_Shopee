@@ -234,10 +234,10 @@
         StateHasChanged();
     });
 
-    // Warehouse stock and balances change when AMS approves a requisition.
+    // APP-CSE balances change when AMS approves; warehouse stock changes when AMS issues.
     private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
     {
-        if (_loadError || !events.Any(e => e.ToStatus is "ApprovedForIssuance" or "Cancelled" or "PendingApproval")) return;
+        if (_loadError || !events.Any(e => e.ToStatus is "ApprovedForIssuance" or "Issued" or "Cancelled" or "PendingApproval")) return;
         await ReloadItemsAsync();
         await ReloadBalancesAsync();
         StateHasChanged();
@@ -245,9 +245,23 @@
 
     public void Dispose()
     {
+        Live.AreasChanged -= OnAreasAsync;
         Live.Changed -= OnLiveAsync;
         Cart.Changed -= OnCartChanged;
         _searchCts?.Cancel();
         _searchCts?.Dispose();
+    }
+
+    // Live: when catalog, appcse change on either website, reload without a refresh.
+    private static readonly string[] LiveAreas = ["catalog", "appcse"];
+    protected override void OnInitialized() => Live.AreasChanged += OnAreasAsync;
+
+    private async Task OnAreasAsync(IReadOnlySet<string> areas)
+    {
+        if (!areas.Overlaps(LiveAreas)) return;
+        if (_loadError) return;
+        await ReloadItemsAsync();
+        await ReloadBalancesAsync();
+        StateHasChanged();
     }
 }

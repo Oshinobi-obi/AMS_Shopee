@@ -190,7 +190,11 @@
         StateHasChanged();
     }
 
-    public void Dispose() => Live.Changed -= OnLiveAsync;
+    public void Dispose()
+    {
+        Live.Changed -= OnLiveAsync;
+        Live.AreasChanged -= OnAreasAsync;
+    }
 
     private async Task LoadAsync(ushort? year)
     {
@@ -209,4 +213,16 @@
         ushort.TryParse(e.Value?.ToString(), out var y) ? LoadAsync(y) : Task.CompletedTask;
 
     private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+
+    // Live: when appcse, catalog change on either website, reload without a refresh.
+    private static readonly string[] LiveAreas = ["appcse", "catalog"];
+    protected override void OnInitialized() => Live.AreasChanged += OnAreasAsync;
+
+    private async Task OnAreasAsync(IReadOnlySet<string> areas)
+    {
+        if (!areas.Overlaps(LiveAreas)) return;
+        if (_user?.IsOffice != true || _report is null) return;
+        await LoadAsync(_report.FiscalYear);
+        StateHasChanged();
+    }
 }

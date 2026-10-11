@@ -4,6 +4,8 @@
 @inject ModalService Modal
 @inject ToastService Toast
 @inject IJSRuntime JS
+@inject CartState CartBadge
+@inject NavigationManager Nav
 @inject LiveRefresh Live
 @implements IDisposable
 
@@ -116,6 +118,14 @@
                                 <i class="bi bi-download me-1" aria-hidden="true"></i> Download signed RIS (PDF)
                             </a>
                         }
+                        @if (_ris.Status is "Issued" or "Rejected" or "Cancelled" or "ApprovedForIssuance")
+                        {
+                            <button type="button" class="btn btn-outline-primary w-100 mt-3" @onclick="RequestAgainAsync" disabled="@_copying">
+                                @if (_copying) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+                                else { <i class="bi bi-arrow-repeat me-1" aria-hidden="true"></i> }
+                                Request these items again
+                            </button>
+                        }
                         @if (_ris.Status == "PendingApproval")
                         {
                             <button type="button" class="btn btn-outline-danger w-100 mt-3" @onclick="CancelAsync">
@@ -179,7 +189,7 @@
                         <span>@(_ris.Status == "PendingApproval" ? "Issue columns are filled in by AMS" : "As recorded by AMS")</span>
                     </header>
                     <div class="ris-scroll">
-                        <RisDocument Model="_ris.Document" IsDraft="@(_ris.Status is "PendingApproval" or "Rejected" or "Cancelled")" MinRows="8" />
+                        <RisDocument Model="_ris.Document" IsDraft="@(_ris.Status is "PendingApproval" or "Rejected" or "Cancelled")" />
                     </div>
                 </div>
                 }
@@ -225,6 +235,36 @@
         Toast.Show(r.Message);
     }
 
+    private bool _copying;
+
+    // Copies this RIS's items into the cart, within today's APP-CSE balances.
+    private async Task RequestAgainAsync()
+    {
+        if (_ris is null || _user is null) return;
+        _copying = true;
+        RequisitionService.RequestAgainResult r;
+        try { r = await Requisitions.RequestAgainAsync(_user, _ris.RisId); }
+        finally { _copying = false; }
+        await CartBadge.RefreshAsync();
+
+        if (r.Added == 0)
+        {
+            await Modal.WarningAsync("Nothing could be added",
+                "None of these items can be requested right now. " + string.Join(" ", r.Skipped.Select(x => x + ".")));
+            return;
+        }
+        if (r.Reduced.Count > 0 || r.Skipped.Count > 0)
+        {
+            var notes = r.Reduced.Select(x => "Reduced: " + x + ".").Concat(r.Skipped.Select(x => "Not added: " + x + "."));
+            await Modal.AlertAsync($"{r.Added} item(s) added to your cart", string.Join(" ", notes), ModalVariant.Info);
+        }
+        else
+        {
+            Toast.Show($"{r.Added} item(s) added to your cart.");
+        }
+        Nav.NavigateTo("/cart");
+    }
+
     private async Task CancelAsync()
     {
         if (_ris is null || _user is null) return;
@@ -242,5 +282,5 @@
         await OnParametersSetAsync();
     }
 
-    private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
+    private async Task PrintAsync() => await JS.InvokeVoidAsync("amsPrint.ris");
 }

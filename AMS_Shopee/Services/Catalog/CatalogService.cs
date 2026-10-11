@@ -24,9 +24,21 @@ public sealed record CatalogItem(
     decimal UnitPrice,
     string? ImagePath,
     int StockOnHand,
-    uint ReorderLevel)
+    uint ReorderLevel,
+    bool IsPerishable = false,
+    DateTime? ManufacturedOn = null,
+    DateTime? ExpiresOn = null)
 {
     public StockLevel Level => RequisitionService.LevelOf(StockOnHand, ReorderLevel);
+
+    /// Days until the EXP (negative = expired); null when the item doesn't expire.
+    public int? DaysToExpiry => IsPerishable && ExpiresOn is { } e
+        ? (e.Date - TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, AMS_Shopee.Services.PhZone.Manila).Date).Days
+        : null;
+
+    /// Expiring within this many days is shown in amber.
+    public const int ExpirySoonDays = 90;
+    public string ExpiryCss => DaysToExpiry switch { < 0 => "is-expired", <= ExpirySoonDays => "is-soon", _ => "" };
 }
 
 public sealed class SuggestionInput
@@ -126,7 +138,8 @@ public sealed class CatalogService(IDbContextFactory<AmsDbContext> dbFactory)
             i.Supplier != null ? i.Supplier.SupplierName : null,
             i.Category != null ? i.Category.CategoryName : null,
             i.Category != null ? i.Category.Icon : null,
-            i.UnitPrice, i.ImagePath, i.StockOnHand, i.ReorderLevel);
+            i.UnitPrice, i.ImagePath, i.StockOnHand, i.ReorderLevel,
+            i.IsPerishable, i.ManufacturedOn, i.ExpiresOn);
 
     private static string? Clip(string? s, int max)
     {

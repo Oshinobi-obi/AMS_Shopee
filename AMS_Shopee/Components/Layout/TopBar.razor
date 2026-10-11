@@ -3,6 +3,7 @@
 @inject AddToCartFlow Flow
 @inject ModalService Modal
 @inject IJSRuntime JS
+@inject NavigationManager Nav
 
 <header class="topbar">
     <div class="container-xl topbar-inner">
@@ -16,9 +17,19 @@
             </span>
         </a>
 
-        <PhClock Class="d-none d-xl-inline-flex topbar-clock" />
+        <PhClock Class="d-none d-xxl-inline-flex topbar-clock" />
 
         <nav class="topbar-actions" aria-label="Account">
+            <NavLink class="topbar-link topbar-icon" href="help" title="Help and FAQ">
+                <i class="bi bi-question-circle" aria-hidden="true"></i>
+                <span class="visually-hidden">Help</span>
+                @if (_isNew) { <span class="new-dot d-md-none"><span class="visually-hidden">New updates</span></span> }
+            </NavLink>
+            <NavLink class="topbar-link topbar-icon d-none d-md-flex" href="whats-new" title="@(_isNew ? "What's new: there are updates you haven't seen" : "What's new")">
+                <i class="bi bi-stars" aria-hidden="true"></i>
+                <span class="visually-hidden">What's new</span>
+                @if (_isNew) { <span class="new-dot"><span class="visually-hidden">New updates</span></span> }
+            </NavLink>
             <ThemeToggle Class="topbar-theme" />
             <AuthorizeView>
                 <Authorized>
@@ -26,15 +37,14 @@
                     {
                         <NavLink class="topbar-link" href="my-requisitions" title="My requisitions">
                             <i class="bi bi-receipt" aria-hidden="true"></i>
-                            <span class="d-none d-lg-inline">My requests</span>
+                            <span class="d-none d-xl-inline">My requests</span>
                         </NavLink>
                         <NavLink class="topbar-link topbar-link-appcse" href="my-app-cse" title="My office's APP-CSE">
                             <i class="bi bi-clipboard-data" aria-hidden="true"></i>
-                            <span class="d-none d-lg-inline">My APP-CSE</span>
+                            <span class="d-none d-xl-inline">My APP-CSE</span>
                         </NavLink>
-                        <NavLink class="topbar-link" href="cart" aria-label="@($"Cart, {Cart.Count} items")">
+                        <NavLink class="topbar-link" href="cart" aria-label="@($"Cart, {Cart.Count} items")" title="Cart">
                             <i class="bi bi-cart3" aria-hidden="true"></i>
-                            <span class="d-none d-sm-inline">Cart</span>
                             @if (Cart.Count > 0)
                             {
                                 <span class="cart-count">@Cart.Count</span>
@@ -43,11 +53,11 @@
                     }
                     <NavLink class="topbar-link topbar-user" href="change-password" title="Change password">
                         <i class="bi bi-person-circle" aria-hidden="true"></i>
-                        <span class="d-none d-md-inline">@context.User.Identity?.Name</span>
+                        <span class="d-none d-lg-inline">@context.User.Identity?.Name</span>
                     </NavLink>
                     <form autocomplete="off" method="post" action="/account/logout" class="m-0" @ref="_logoutForm">
                         <AntiforgeryToken />
-                        <button type="button" class="btn btn-sm topbar-btn" @onclick="ConfirmLogoutAsync" aria-label="Log out" title="Log out"><i class="bi bi-box-arrow-right d-sm-none" aria-hidden="true"></i><span class="logout-text">Log out</span></button>
+                        <button type="button" class="btn btn-sm topbar-btn" @onclick="ConfirmLogoutAsync" aria-label="Log out" title="Log out"><i class="bi bi-box-arrow-right d-md-none" aria-hidden="true"></i><span class="logout-text">Log out</span></button>
                     </form>
                 </Authorized>
                 <NotAuthorized>
@@ -68,7 +78,32 @@
     {
         if (AuthState is not null) _user = CurrentUser.From((await AuthState).User);
         Cart.Changed += OnCartChanged;
+        Nav.LocationChanged += OnLocationChanged;
         await Cart.RefreshAsync();
+    }
+
+    // Gold dot on "What's new" until this browser has opened the page for the newest version.
+    private bool _isNew;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        try
+        {
+            _isNew = await JS.InvokeAsync<bool>("amsWhatsNew.isNew", AMS_Shopee.Services.Ui.Changelog.LatestVersion)
+                     && !Nav.Uri.Contains("/whats-new", StringComparison.OrdinalIgnoreCase);
+            if (_isNew) StateHasChanged();
+        }
+        catch { /* prerendering or closed */ }
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (_isNew && e.Location.Contains("/whats-new", StringComparison.OrdinalIgnoreCase))
+        {
+            _isNew = false;
+            _ = InvokeAsync(StateHasChanged);
+        }
     }
 
     private ElementReference _logoutForm;
@@ -83,5 +118,9 @@
     }
 
     private void OnCartChanged() => _ = InvokeAsync(StateHasChanged);
-    public void Dispose() => Cart.Changed -= OnCartChanged;
+    public void Dispose()
+    {
+        Cart.Changed -= OnCartChanged;
+        Nav.LocationChanged -= OnLocationChanged;
+    }
 }

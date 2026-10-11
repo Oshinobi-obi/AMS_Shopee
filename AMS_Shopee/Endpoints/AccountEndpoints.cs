@@ -1,10 +1,4 @@
 using Microsoft.AspNetCore.RateLimiting;
-// AccountEndpoints.cs — cookie login/logout.
-// An interactive (SignalR) component cannot set a cookie, so the login modal
-// renders a normal <form method="post" action="/account/login"> containing
-// <AntiforgeryToken />, posts here, and the page reloads signed in.
-// Wired up in Program.cs with app.MapAccountEndpoints().
-
 using System.Security.Claims;
 using AMS_Shopee.Data;
 using AMS_Shopee.Data.Entities;
@@ -20,7 +14,6 @@ public static class AccountEndpoints
     private const uint MaxFailures = 5;
     private static readonly TimeSpan LockFor = TimeSpan.FromMinutes(15);
     private const int TargetBcryptCost = 12;
-    // Same convention as RequisitionService: all DB timestamps are Philippine time.
     private static readonly TimeZoneInfo Manila = AMS_Shopee.Services.PhZone.Manila;
 
     public sealed class LoginForm
@@ -79,13 +72,11 @@ public static class AccountEndpoints
 
             await SignInAsync(http, user, f.RememberMe);
 
-            // Resume what the guest was doing: the catalog page reads ?add=&qty= and adds the item.
             if (f.PendingItemId is uint itemId)
                 back = Append(back, $"add={itemId}&qty={Math.Max(1, f.PendingQty ?? 1)}");
             return Results.LocalRedirect(back);
         }).RequireRateLimiting("login");
 
-        // Re-issues the cookie from the database (after a password change).
         group.MapGet("/refresh", async (HttpContext http, IDbContextFactory<AmsDbContext> dbFactory, string? returnUrl) =>
         {
             if (!uint.TryParse(http.User.FindFirstValue(ClaimTypes.NameIdentifier), out var id))
@@ -97,7 +88,6 @@ public static class AccountEndpoints
                 await http.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                 return Results.LocalRedirect("/");
             }
-            // Keep the same "Keep me signed in" choice the user made at login
             var existing = await http.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             await SignInAsync(http, user, existing.Properties?.IsPersistent ?? false);
             return Results.LocalRedirect(SafeLocal(returnUrl));
@@ -127,8 +117,6 @@ public static class AccountEndpoints
             new ClaimsPrincipal(new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme)),
             new AuthenticationProperties
             {
-                // Unticked: signed out when the browser closes, or after one workday.
-                // Ticked: stays signed in for 7 days on this computer.
                 IsPersistent = keepSignedIn,
                 ExpiresUtc = keepSignedIn ? DateTimeOffset.UtcNow.AddDays(7) : DateTimeOffset.UtcNow.AddHours(9),
             });
@@ -137,7 +125,7 @@ public static class AccountEndpoints
     private static bool PasswordMatches(string password, string hash)
     {
         try { return BCrypt.Net.BCrypt.Verify(password, hash); }
-        catch (BCrypt.Net.SaltParseException) { return false; }   // malformed hash in DB
+        catch (BCrypt.Net.SaltParseException) { return false; }
     }
 
     private static string SafeLocal(string? url) =>

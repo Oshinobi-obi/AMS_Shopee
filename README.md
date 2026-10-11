@@ -76,8 +76,8 @@ flowchart LR
     A["🛒 Office adds items<br/>(within its APP-CSE)"] --> B["📝 Submit RIS"]
     B -->|Pending approval| C{"AMS reviews<br/>in StockWatch"}
     C -->|"Reject, with a reason"| R["Office sees the reason<br/>and can resubmit"]
-    C -->|"Approve: stock and<br/>APP-CSE deducted"| D["🖨️ Office prints the RIS,<br/>signs, picks up the items"]
-    D --> E["✍️ AMS signs, scans the slip,<br/>marks it Issued"]
+    C -->|"Approve: APP-CSE used,<br/>stock reserved"| D["🖨️ Office prints the RIS,<br/>signs, picks up the items"]
+    D --> E["✍️ AMS signs, scans the slip,<br/>marks it Issued (stock deducted)"]
     E --> F["📄 Signed PDF saved for<br/>the office and AMS"]
 ```
 

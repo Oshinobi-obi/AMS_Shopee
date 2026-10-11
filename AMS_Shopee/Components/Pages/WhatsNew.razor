@@ -1,0 +1,73 @@
+@page "/whats-new"
+@using AMS_Shopee.Services.Ui
+@inject IJSRuntime JS
+
+<PageTitle>What's new | AMS</PageTitle>
+
+<section class="page-head">
+    <div class="container-xl">
+        <h1>What's new</h1>
+        <p>Every update to AMS Supplies, from the first version to the latest fixes. Version @Changelog.LatestVersion is the current one.</p>
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    <div class="status-chips changelog-filter" role="group" aria-label="Show">
+        <button type="button" class="status-chip @(_kind is null ? "is-active" : "")" @onclick="() => _kind = null">All <span>@Count(null)</span></button>
+        @foreach (var k in Enum.GetValues<ChangeKind>())
+        {
+            var kind = k;
+            <button type="button" class="status-chip @(_kind == kind ? "is-active" : "")" @onclick="() => _kind = kind">
+                <i class="bi @Icon(kind)" aria-hidden="true"></i>@Label(kind) <span>@Count(kind)</span>
+            </button>
+        }
+    </div>
+
+    <ol class="changelog">
+        @for (var i = 0; i < Changelog.Releases.Count; i++)
+        {
+            var r = Changelog.Releases[i];
+            var changes = r.Changes.Where(c => _kind is null || c.Kind == _kind).ToList();
+            if (changes.Count == 0) continue;
+            <li class="release @(i == 0 ? "is-latest" : "")">
+                <div class="release-marker" aria-hidden="true"></div>
+                <section class="panel release-card">
+                    <header class="release-head">
+                        <span class="release-version">Version @r.Version</span>
+                        @if (i == 0) { <span class="release-latest">Latest</span> }
+                        <time datetime="@r.Date.ToString("yyyy-MM-dd")">@r.Date.ToString("MMMM d, yyyy")</time>
+                    </header>
+                    <h2>@r.Title</h2>
+                    <ul class="release-changes">
+                        @foreach (var c in changes)
+                        {
+                            <li>
+                                <span class="change-tag is-@c.Kind.ToString().ToLowerInvariant()"><i class="bi @Icon(c.Kind)" aria-hidden="true"></i>@Label(c.Kind)</span>
+                                <span>@c.Text</span>
+                            </li>
+                        }
+                    </ul>
+                </section>
+            </li>
+        }
+    </ol>
+
+    <p class="changelog-foot"><i class="bi bi-question-circle" aria-hidden="true"></i> Not sure how something works? See <a href="help">Help and FAQ</a>.</p>
+</div>
+
+@code {
+    private ChangeKind? _kind;
+
+    private static int Count(ChangeKind? kind) =>
+        Changelog.Releases.Sum(r => r.Changes.Count(c => kind is null || c.Kind == kind));
+
+    private static string Label(ChangeKind k) => k switch { ChangeKind.New => "New", ChangeKind.Improved => "Improved", _ => "Fixed" };
+    private static string Icon(ChangeKind k) => k switch { ChangeKind.New => "bi-stars", ChangeKind.Improved => "bi-arrow-up-circle", _ => "bi-wrench" };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+        // Remember that this version was seen, so the gold dot in the top bar goes away.
+        try { await JS.InvokeVoidAsync("amsWhatsNew.markSeen", Changelog.LatestVersion); } catch { /* prerendering or closed */ }
+    }
+}

@@ -1,6 +1,3 @@
-// RisEndpoints.cs — lets an office open the signed RIS (PDF) that AMS uploaded.
-// An office can only open its own requisitions.
-
 using System.Security.Claims;
 using AMS_Shopee.Data;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +8,6 @@ public static class RisEndpoints
 {
     public static void MapRisEndpoints(this WebApplication app)
     {
-        // Item photos uploaded in AMS StockWatch. Public, like the catalog itself.
-        // The image address changes (?v=…) whenever AMS replaces a photo, so it can be cached.
         app.MapGet("/images/items/{id:long}", async (long id, HttpContext http, IDbContextFactory<AmsDbContext> dbFactory) =>
         {
             if (id is <= 0 or > uint.MaxValue) return Results.NotFound();

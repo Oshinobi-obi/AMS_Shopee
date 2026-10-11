@@ -492,6 +492,47 @@ public sealed class RequisitionService(
         return new(true, $"{ris.RisNo} was rejected. The office can see your reason.");
     }
 
+    // ── 7. REQUEST AGAIN (copy a past RIS into the cart) ──────────────────
+    public sealed record RequestAgainResult(int Added, IReadOnlyList<string> Reduced, IReadOnlyList<string> Skipped);
+
+    /// Adds every line of one of the office's past requisitions to its cart. Each line goes
+    /// through the normal cart checks; a line over the APP-CSE balance is added with what is
+    /// still allowed, and lines that can't be added at all are listed with the reason.
+    public async Task<RequestAgainResult> RequestAgainAsync(CurrentUser u, uint risId, CancellationToken ct = default)
+    {
+        List<(uint ItemId, int Qty, string Name)> lines;
+        await using (var db = await dbFactory.CreateDbContextAsync(ct))
+        {
+            lines = (await db.RisTransactions.AsNoTracking()
+                    .Where(r => r.RisId == risId && r.OfficeId == u.OfficeId)
+                    .SelectMany(r => r.RisItems)
+                    .OrderBy(i => i.LineNo)
+                    .Select(i => new { i.ItemId, i.RequestedQty, i.ItemDescription })
+                    .ToListAsync(ct))
+                .Select(i => (i.ItemId, (int)i.RequestedQty, i.ItemDescription)).ToList();
+        }
+
+        var added = 0;
+        var reduced = new List<string>();
+        var skipped = new List<string>();
+        foreach (var (itemId, qty, name) in lines)
+        {
+            var check = await AddToCartAsync(u, itemId, qty, ct);
+            if (check.Allowed) { added++; continue; }
+
+            var canAdd = check.Balance?.CanStillAdd ?? 0;
+            if (check.Issues.Any(i => i.Code == "EXCEEDS_APP_CSE") && canAdd > 0 &&
+                (await AddToCartAsync(u, itemId, canAdd, ct)).Allowed)
+            {
+                added++;
+                reduced.Add($"{name}: {canAdd} instead of {qty} (APP-CSE balance)");
+                continue;
+            }
+            skipped.Add($"{name}: {check.Issues.FirstOrDefault()?.Title ?? "can't be added"}");
+        }
+        return new RequestAgainResult(added, reduced, skipped);
+    }
+
     // ── 6. RECEIVED BY (office names who will pick up the items) ────────
     public async Task<OpResult> SetReceiverAsync(CurrentUser u, uint risId, uint? personnelId, CancellationToken ct = default)
     {

@@ -10,10 +10,13 @@
 else
 {
     <div class="detail">
-        <div class="detail-media">
+        <div class="@($"detail-media {(string.IsNullOrEmpty(_item.ImagePath) ? "" : "has-photo")}")">
             @if (!string.IsNullOrEmpty(_item.ImagePath))
             {
-                <img src="@_item.ImagePath" alt="@_item.Name" />
+                <button type="button" class="detail-photo" @onclick="() => _zoom = true" aria-label="@($"View the photo of {_item.Name} full screen")">
+                    <img src="@_item.ImagePath" alt="@_item.Name" />
+                </button>
+                <span class="detail-zoom-hint"><i class="bi bi-arrows-fullscreen" aria-hidden="true"></i>Click to enlarge</span>
             }
             else
             {
@@ -30,7 +33,18 @@ else
                 <dt>Unit of measure</dt><dd>@_item.Unit</dd>
                 <dt>Stock no.</dt><dd>@_item.StockNo</dd>
                 <dt>Supplier</dt><dd>@(_item.Supplier ?? "Not specified")</dd>
-                <dt>AMS warehouse</dt><dd>@_item.StockOnHand.ToString("N0") @_item.Unit</dd>
+                <dt>AMS stockroom</dt><dd>@_item.StockOnHand.ToString("N0") @_item.Unit</dd>
+                @if (_item.DaysToExpiry is int days)
+                {
+                    <dt>MFD</dt><dd>@(_item.ManufacturedOn?.ToString("MMMM d, yyyy") ?? "Not indicated")</dd>
+                    <dt>EXP</dt>
+                    <dd>
+                        <span class="exp-date @_item.ExpiryCss">
+                            @_item.ExpiresOn!.Value.ToString("MMMM d, yyyy")
+                            @(days < 0 ? "· expired" : days == 0 ? "· expires today" : days <= CatalogItem.ExpirySoonDays ? $"· {days} day{(days == 1 ? "" : "s")} left" : "")
+                        </span>
+                    </dd>
+                }
             </dl>
 
             @if (_isOffice)
@@ -59,6 +73,21 @@ else
     </div>
 }
 
+@if (_zoom && _item is not null && !string.IsNullOrEmpty(_item.ImagePath))
+{
+    @* Full-screen photo. Click anywhere, press Esc or use ✕ to close. *@
+    <div class="photo-viewer" role="dialog" aria-modal="true" aria-label="@($"Photo of {_item.Name}")" tabindex="-1"
+         @ref="_viewer" @onclick="() => _zoom = false" @onkeydown="OnViewerKey" @onkeydown:stopPropagation="true">
+        <button type="button" class="photo-viewer-close" aria-label="Close the photo" @onclick="() => _zoom = false" @onclick:stopPropagation="true">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+        <figure class="m-0 text-center">
+            <img src="@_item.ImagePath" alt="@_item.Name" />
+            <figcaption class="photo-viewer-caption">@_item.Name</figcaption>
+        </figure>
+    </div>
+}
+
 @code {
     [Parameter] public uint ItemId { get; set; }
     [CascadingParameter] public ModalInstance? Instance { get; set; }
@@ -67,6 +96,25 @@ else
     private QuotaBalance? _balance;
     private bool _isOffice, _busy, _notFound;
     private int _qty = 1;
+
+    // Full-screen photo viewer
+    private bool _zoom, _zoomFocused;
+    private ElementReference _viewer;
+
+    private void OnViewerKey(KeyboardEventArgs e)
+    {
+        if (e.Key is "Escape" or "Enter" or " ") _zoom = false;   // Esc closes only the photo, not the item window
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_zoom && !_zoomFocused)
+        {
+            _zoomFocused = true;
+            try { await _viewer.FocusAsync(); } catch { /* closed meanwhile */ }
+        }
+        if (!_zoom) _zoomFocused = false;
+    }
 
     // Offices are capped at what they can still add; others at a sane maximum.
     private int MaxQty => _isOffice && _balance is not null ? Math.Max(1, _balance.CanStillAdd) : 9999;

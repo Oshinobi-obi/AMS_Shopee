@@ -1,0 +1,133 @@
+@page "/help"
+@using AMS_Shopee.Services.Ui
+
+<PageTitle>Help and FAQ | AMS</PageTitle>
+
+<section class="page-head">
+    <div class="container-xl">
+        <h1>Help and FAQ</h1>
+        <p>Answers to common questions about requesting office supplies from the Asset Management Section.</p>
+        <div class="help-search">
+            <i class="bi bi-search" aria-hidden="true"></i>
+            <input type="search" class="form-control" placeholder="Search the questions, e.g. print, balance, cancel" autocomplete="off"
+                   aria-label="Search the help" @bind="_query" @bind:event="oninput" />
+        </div>
+    </div>
+</section>
+
+<div class="container-xl page-body">
+    <div class="help-layout">
+        <nav class="help-nav" aria-label="Help topics">
+            <p class="help-nav-title">Topics</p>
+            @foreach (var t in HelpContent.Topics)
+            {
+                var count = Matches(t).Count;
+                <a href="@($"help#{t.Id}")" class="@(count == 0 ? "is-empty" : "")">
+                    <i class="bi @t.Icon" aria-hidden="true"></i><span>@t.Title</span><small>@count</small>
+                </a>
+            }
+            <a href="whats-new" class="help-nav-new"><i class="bi bi-stars" aria-hidden="true"></i><span>What's new</span></a>
+        </nav>
+
+        <div class="help-main">
+            @if (Searching && Total == 0)
+            {
+                <div class="empty-state panel">
+                    <i class="bi bi-search" aria-hidden="true"></i>
+                    <h2>No answers match “@_query.Trim()”</h2>
+                    <p>Try another word, or contact the Asset Management Section.</p>
+                    <button type="button" class="btn btn-primary" @onclick="() => _query = string.Empty">Show all questions</button>
+                </div>
+            }
+            @foreach (var t in HelpContent.Topics)
+            {
+                var items = Matches(t);
+                if (items.Count == 0) continue;
+                <section class="panel help-topic" id="@t.Id">
+                    <header class="panel-head">
+                        <h2><i class="bi @t.Icon" aria-hidden="true"></i>@t.Title</h2>
+                    </header>
+                    <div class="help-list">
+                        @foreach (var q in items)
+                        {
+                            <details class="help-item" id="@($"q-{q.Id}")" open="@Searching">
+                                <summary><span>@q.Question</span><i class="bi bi-chevron-down" aria-hidden="true"></i></summary>
+                                <div class="help-answer">
+                                    @foreach (var block in Blocks(q.Answer))
+                                    {
+                                        if (block.IsList)
+                                        {
+                                            if (block.Ordered)
+                                            {
+                                                <ol>@foreach (var li in block.Lines) { <li>@li</li> }</ol>
+                                            }
+                                            else
+                                            {
+                                                <ul>@foreach (var li in block.Lines) { <li>@li</li> }</ul>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <p>@block.Lines[0]</p>
+                                        }
+                                    }
+                                </div>
+                            </details>
+                        }
+                    </div>
+                </section>
+            }
+
+            <section class="help-contact">
+                <i class="bi bi-headset" aria-hidden="true"></i>
+                <div>
+                    <h2>Still need help?</h2>
+                    <p>Contact the Asset Management Section of the Regional Office. For a supply that isn't in the catalog yet, use <strong>Suggest a supply</strong> at the bottom of any page.</p>
+                </div>
+            </section>
+        </div>
+    </div>
+</div>
+
+@code {
+    private string _query = "";
+
+    private bool Searching => !string.IsNullOrWhiteSpace(_query);
+    private int Total => HelpContent.Topics.Sum(t => Matches(t).Count);
+
+    /// Every word typed must appear in the question, answer or keywords.
+    private List<HelpQa> Matches(HelpTopic t)
+    {
+        if (!Searching) return t.Questions.ToList();
+        var words = _query.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return t.Questions.Where(q =>
+        {
+            var text = $"{q.Question} {q.Answer} {q.Keywords} {t.Title}";
+            return words.All(w => text.Contains(w, StringComparison.OrdinalIgnoreCase));
+        }).ToList();
+    }
+
+    private sealed record Block(bool IsList, bool Ordered, List<string> Lines);
+
+    /// Paragraphs are separated by blank lines; lines starting with "1." or "•" become lists.
+    private static IEnumerable<Block> Blocks(string text)
+    {
+        foreach (var para in text.Split("\n\n"))
+        {
+            var lines = para.Split('\n', StringSplitOptions.RemoveEmptyEntries).ToList();
+            var intro = new List<string>();
+            var items = new List<string>();
+            var ordered = false;
+            foreach (var line in lines)
+            {
+                var l = line.Trim();
+                if (l.StartsWith("• ")) items.Add(l[2..]);
+                else if (l.Length > 2 && char.IsDigit(l[0]) && l[1] == '.' ) { items.Add(l[2..].Trim()); ordered = true; }
+                else if (items.Count == 0) intro.Add(l);
+                else items[^1] += " " + l;
+            }
+            if (intro.Count > 0) yield return new Block(false, false, [string.Join(" ", intro)]);
+            if (items.Count > 0) yield return new Block(true, ordered, items);
+        }
+    }
+}

@@ -38,8 +38,43 @@ public sealed record MyRisDetail(uint RisId, string RisNo, string Status, DateTi
                                  RisDocumentModel Document, IReadOnlyList<MyRisEvent> Events, decimal Amount,
                                  uint? ReceivedById, IReadOnlyList<PersonnelOption> OfficePersonnel, bool HasSignedCopy);
 
+public sealed record MySuggestion(uint Id, string ItemName, string? Description, string Status, string? Response,
+                                  DateTime CreatedAt, DateTime? ReviewedAt);
+
 public sealed class MyRequisitionQueries(IDbContextFactory<AmsDbContext> dbFactory)
 {
+    /// "Suggest a supply" requests from this office (or this account), newest first, with AMS's answer.
+    public async Task<List<MySuggestion>> SuggestionsAsync(CurrentUser? u, CancellationToken ct = default)
+    {
+        if (u is null) return [];
+        await using var db = await dbFactory.CreateDbContextAsync(ct);
+        return await db.SupplySuggestions.AsNoTracking()
+            .Where(s => s.UserId == u.UserId || (u.OfficeId != null && s.OfficeId == u.OfficeId))
+            .OrderByDescending(s => s.CreatedAt)
+            .Select(s => new MySuggestion(s.SuggestionId, s.ItemName, s.Description, s.Status, s.AdminResponse, s.CreatedAt, s.ReviewedAt))
+            .ToListAsync(ct);
+    }
+
+    public static string SuggestionLabel(string status) => status switch
+    {
+        "New" => "Sent to AMS",
+        "UnderReview" => "AMS is reviewing it",
+        "AddedToCatalog" => "Added to the catalog",
+        "ForNextAPP" => "Planned for the next APP",
+        "Declined" => "Not added",
+        _ => status,
+    };
+
+    public static string SuggestionCss(string status) => status switch
+    {
+        "New" => "is-pending",
+        "UnderReview" => "is-approved",
+        "AddedToCatalog" => "is-issued",
+        "ForNextAPP" => "is-approved",
+        "Declined" => "is-cancelled",
+        _ => "is-cancelled",
+    };
+
     public async Task<List<MyRisRow>> ListAsync(CurrentUser? u, CancellationToken ct = default)
     {
         if (u is null || !u.IsOffice) return [];

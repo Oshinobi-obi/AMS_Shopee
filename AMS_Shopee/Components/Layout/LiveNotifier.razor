@@ -33,6 +33,7 @@
     {
         _user = CurrentUser.From(AuthState is null ? null : (await AuthState).User);
         Feed.Changed += OnFeed;
+        Feed.AreasChanged += OnAreas;
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -95,5 +96,16 @@
             result == "granted" ? ModalVariant.Success : ModalVariant.Info);
     }
 
-    public void Dispose() => Feed.Changed -= OnFeed;
+    // Announcements, catalog, APP-CSE, … changed: open pages reload that data quietly.
+    private void OnAreas(IReadOnlySet<string> areas) => _ = InvokeAsync(async () =>
+    {
+        if (!_ready) return;
+        await Refresh.RaiseAreasAsync(areas);
+    });
+
+    public void Dispose()
+    {
+        Feed.Changed -= OnFeed;
+        Feed.AreasChanged -= OnAreas;
+    }
 }
