@@ -1,5 +1,5 @@
-// ToastService.cs — small, non-blocking "Added to cart" style messages.
-// Rendered by <ToastHost /> in MainLayout. Registered Scoped (per circuit).
+// This is for the small "Added to cart" messages that don't block the page.
+// <ToastHost /> in MainLayout shows them. It's registered as Scoped (one per circuit).
 
 using AMS_Shopee.Components.Shared.Modals;
 
@@ -17,7 +17,7 @@ public sealed class ToastService
     {
         var toast = new ToastMessage(Guid.NewGuid(), text, variant);
         _items.Add(toast);
-        if (_items.Count > 3) _items.RemoveAt(0);   // never pile up
+        if (_items.Count > 3) _items.RemoveAt(0);   // so they don't pile up
         Changed?.Invoke();
         _ = RemoveLaterAsync(toast, milliseconds);
     }

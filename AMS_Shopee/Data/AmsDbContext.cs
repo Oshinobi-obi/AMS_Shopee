@@ -170,6 +170,9 @@ public partial class AmsDbContext : DbContext
                 .HasColumnName("added_at");
             entity.Property(e => e.ItemId).HasColumnName("item_id");
             entity.Property(e => e.Quantity).HasColumnName("quantity");
+            entity.Property(e => e.Colors)
+                .HasMaxLength(500)
+                .HasColumnName("colors");
             entity.Property(e => e.Remarks)
                 .HasMaxLength(255)
                 .HasColumnName("remarks");
@@ -764,6 +767,9 @@ public partial class AmsDbContext : DbContext
             entity.Property(e => e.IsPerishable).HasColumnName("is_perishable");
             entity.Property(e => e.ManufacturedOn).HasColumnType("date").HasColumnName("manufactured_on");
             entity.Property(e => e.ExpiresOn).HasColumnType("date").HasColumnName("expires_on");
+            entity.Property(e => e.MfdMonthOnly).HasColumnName("mfd_month_only");
+            entity.Property(e => e.ExpMonthOnly).HasColumnName("exp_month_only");
+            entity.Property(e => e.ColorOptions).HasMaxLength(500).HasColumnName("color_options");
             entity.Property(e => e.ItemName)
                 .HasMaxLength(200)
                 .HasColumnName("item_name");

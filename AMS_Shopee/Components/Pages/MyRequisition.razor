@@ -9,9 +9,10 @@
 @inject LiveRefresh Live
 @implements IDisposable
 
-<PageTitle>@(_ris is null ? "Requisition" : $"RIS {_ris.RisNo}") | AMS</PageTitle>
+<PageTitle>@(_ris is null ? "Requisition" : $"RIS {_ris.RisNo}") | e-SRS</PageTitle>
 
 <section class="page-head no-print">
+    <SeasonDecor />
     <div class="container-xl">
         <a class="hero-link ms-0" href="/my-requisitions"><i class="bi bi-arrow-left" aria-hidden="true"></i> My requisitions</a>
         <h1 class="mt-2">@(_ris is null ? "Requisition" : $"RIS {_ris.RisNo}")</h1>
@@ -25,7 +26,7 @@
 <div class="container-xl page-body">
     @if (_loading)
     {
-        <p class="text-secondary py-5 text-center">Loading…</p>
+        <LoadingSkeleton Kind="detail" Label="Loading the requisition…" />
     }
     else if (_ris is null)
     {
@@ -215,7 +216,7 @@
 
     protected override void OnInitialized() => Live.Changed += OnLiveAsync;
 
-    // AMS approving, rejecting or issuing this RIS updates the page without a reload.
+    // When AMS approves, rejects or issues this RIS, the page updates without reloading.
     private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
     {
         if (_ris is null || !events.Any(e => e.RisId == _ris.RisId)) return;
@@ -237,7 +238,7 @@
 
     private bool _copying;
 
-    // Copies this RIS's items into the cart, within today's APP-CSE balances.
+    // Copies the items of this RIS into the cart, within the APP-CSE balance left today.
     private async Task RequestAgainAsync()
     {
         if (_ris is null || _user is null) return;

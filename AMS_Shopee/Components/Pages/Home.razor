@@ -10,9 +10,10 @@
 @inject ToastService Toast
 @inject LiveRefresh Live
 
-<PageTitle>Office supplies | AMS</PageTitle>
+<PageTitle>Office supplies | e-SRS</PageTitle>
 
 <section class="catalog-hero">
+    <SeasonDecor />
     <div class="container-xl">
         <h1 class="catalog-title">What supplies does your office need?</h1>
         <p class="catalog-lede">
@@ -20,6 +21,10 @@
             @if (_isOffice)
             {
                 <a class="hero-link" href="my-app-cse">View your full APP-CSE</a>
+            }
+            else
+            {
+                <a class="hero-link" href="my-accountability">RO personnel: check your accountability</a>
             }
         </p>
         <div class="catalog-search" role="search">
@@ -91,6 +96,7 @@
                 <ItemCard @key="item.ItemId"
                           Item="item"
                           IsOffice="_isOffice"
+                          AppCseRequired="_appCseRequired"
                           Balance="@_balances.GetValueOrDefault(item.ItemId)"
                           OnOpen="() => OpenDetailAsync(item)"
                           OnAdd="() => AddOneAsync(item)" />
@@ -102,7 +108,7 @@
 @code {
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
-    // Set by AccountEndpoints after login: ?login=failed|locked, ?add={itemId}&qty={n}
+    // AccountEndpoints sets these after login: ?login=failed|locked, ?add={itemId}&qty={n}
     [SupplyParameterFromQuery(Name = "login")] public string? LoginStatus { get; set; }
     [SupplyParameterFromQuery(Name = "add")]   public int? AddItemId { get; set; }
     [SupplyParameterFromQuery(Name = "qty")]   public int? AddQty { get; set; }
@@ -115,6 +121,7 @@
     private List<CatalogCategory> _categories = [];
     private List<CatalogItem>? _items;
     private Dictionary<uint, QuotaBalance> _balances = new();
+    private bool _appCseRequired = true;
     private string _search = "";
     private uint? _categoryId;
     private StockFilter _stock = StockFilter.All;
@@ -165,7 +172,7 @@
             return;
         }
 
-        // Coming back from a failed login: reopen the modal with the reason.
+        // Login failed, so I open the modal again with the reason.
         if (LoginStatus is "failed" or "locked" or "busy")
         {
             var status = LoginStatus;
@@ -177,14 +184,16 @@
                 _ => "Incorrect username or password.",
             });
         }
-        // Coming back from a successful login that started with "Add to cart".
+        // Login worked and it started from "Add to cart", so I add the item now.
         else if (AddItemId is > 0 && _user is not null)
         {
             var itemId = (uint)AddItemId.Value;
             var qty = Math.Max(1, AddQty ?? 1);
             ClearQuery();
             var item = _items?.FirstOrDefault(i => i.ItemId == itemId) ?? await CatalogSvc.GetItemAsync(itemId);
-            if (item is not null)
+            if (item is { Colors.Count: > 0 })
+                await OpenDetailAsync(item);   // they pick the color there
+            else if (item is not null)
                 await Flow.AddAsync(item.ItemId, item.Name, item.Unit, qty);
         }
     }
@@ -198,8 +207,11 @@
     private async Task ReloadItemsAsync() =>
         _items = await CatalogSvc.GetItemsAsync(_search, _categoryId, _stock);
 
-    private async Task ReloadBalancesAsync() =>
+    private async Task ReloadBalancesAsync()
+    {
+        _appCseRequired = await Requisitions.AppCseRequiredAsync();
         _balances = await Requisitions.GetBalancesAsync(_user);
+    }
 
     private async Task OnSearchInput(ChangeEventArgs e)
     {
@@ -208,7 +220,7 @@
         _searchCts = new CancellationTokenSource();
         try
         {
-            await Task.Delay(250, _searchCts.Token);   // wait until typing pauses
+            await Task.Delay(250, _searchCts.Token);   // wait until they stop typing
             await ReloadItemsAsync();
         }
         catch (TaskCanceledException) { }
@@ -223,18 +235,20 @@
     private Task OpenDetailAsync(CatalogItem item) =>
         Modal.ShowComponentAsync<ItemDetail>(item.Name, new() { ["ItemId"] = item.ItemId }, ModalSize.Large);
 
-    private Task AddOneAsync(CatalogItem item) => Flow.AddAsync(item.ItemId, item.Name, item.Unit, 1);
+    private Task AddOneAsync(CatalogItem item) => item.Colors.Count > 0
+        ? OpenDetailAsync(item)
+        : Flow.AddAsync(item.ItemId, item.Name, item.Unit, 1);
 
     private Task SuggestAsync() => Modal.ShowComponentAsync<SuggestionForm>("Suggest an office supply");
 
-    // Any cart change (from a card, the detail modal, or the top bar) refreshes the quota meters.
+    // Any cart change (from a card, the details, or the top bar) refreshes the quota meters.
     private void OnCartChanged() => _ = InvokeAsync(async () =>
     {
         await ReloadBalancesAsync();
         StateHasChanged();
     });
 
-    // APP-CSE balances change when AMS approves; warehouse stock changes when AMS issues.
+    // APP-CSE balances change when AMS approves. Warehouse stock changes when AMS issues.
     private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
     {
         if (_loadError || !events.Any(e => e.ToStatus is "ApprovedForIssuance" or "Issued" or "Cancelled" or "PendingApproval")) return;
@@ -252,7 +266,7 @@
         _searchCts?.Dispose();
     }
 
-    // Live: when catalog, appcse change on either website, reload without a refresh.
+    // Live update: when the catalog or APP-CSE changes on either website, reload without refreshing.
     private static readonly string[] LiveAreas = ["catalog", "appcse"];
     protected override void OnInitialized() => Live.AreasChanged += OnAreasAsync;
 

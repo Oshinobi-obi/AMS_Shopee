@@ -31,12 +31,20 @@ public partial class SupplyItem
 
     public bool? IsActive { get; set; }
 
-    /// Has an expiration date. EXP is set by AMS; MFD is optional.
+    /// The item expires. AMS sets the EXP, the MFD is optional.
     public bool IsPerishable { get; set; }
 
     public DateTime? ManufacturedOn { get; set; }
 
     public DateTime? ExpiresOn { get; set; }
+
+    /// MFD / EXP shown as month and year only (database update 020).
+    public bool MfdMonthOnly { get; set; }
+
+    public bool ExpMonthOnly { get; set; }
+
+    /// Colors the offices can choose, like "Black|#1f2937;Blue|#1d4ed8" (see ItemColors).
+    public string? ColorOptions { get; set; }
 
     public uint RowVersion { get; set; }
 

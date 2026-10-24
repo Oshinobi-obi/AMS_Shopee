@@ -1,9 +1,10 @@
-@* Dropdown for choosing a person. Replaces a native <select> so the option list is
-   exactly as wide as the field and long positions wrap instead of spilling out.
+@* This is my dropdown for choosing a person. I made it instead of using a normal <select>
+   so the list is exactly as wide as the field and long positions wrap instead of overflowing.
    Usage: <PersonnelPicker Id="x" Options="list" @bind-Value="stringId" Placeholder="..." /> *@
 
 <div class="picker @(_open ? "is-open" : "")">
     <button type="button" id="@Id" class="form-select picker-toggle"
+            title="@(Selected is null ? null : $"{Selected.FullName}, {Selected.Position}")"
             aria-haspopup="listbox" aria-expanded="@(_open ? "true" : "false")"
             @onclick="ToggleAsync">
         @if (Selected is null)
@@ -46,13 +47,13 @@
 @code {
     [Parameter, EditorRequired] public string Id { get; set; } = "";
     [Parameter, EditorRequired] public IReadOnlyList<PersonnelOption> Options { get; set; } = [];
-    [Parameter] public string Value { get; set; } = "";              // personnel id as text, "" = none
+    [Parameter] public string Value { get; set; } = "";              // personnel id as text, "" means none
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public string Placeholder { get; set; } = "Select a person";
 
     private ElementReference _list;
     private bool _open, _focusList;
-    private int _active;   // 0 = placeholder row, 1..n = Options
+    private int _active;   // 0 is the placeholder row, 1 to n are the options
 
     private PersonnelOption? Selected => Options.FirstOrDefault(o => o.Id.ToString() == Value);
 
@@ -71,7 +72,7 @@
         if (_focusList && _open)
         {
             _focusList = false;
-            await _list.FocusAsync();   // arrow keys work straight away
+            await _list.FocusAsync();   // so the arrow keys work right away
         }
     }
 

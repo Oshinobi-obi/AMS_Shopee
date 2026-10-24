@@ -56,7 +56,7 @@ public static class AccountEndpoints
                     user.FailedLoginAttempts = 0;
                 }
                 await db.SaveChangesAsync();
-                return Results.LocalRedirect(Append(back, "login=failed"));   // modal reopens with a message
+                return Results.LocalRedirect(Append(back, "login=failed"));   // the modal opens again with a message
             }
 
             user!.FailedLoginAttempts = 0;

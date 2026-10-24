@@ -1,5 +1,5 @@
-// CatalogService.cs — read-only catalog queries for the public landing page,
-// plus the "Suggest a supply" submission. Registered Scoped in Program.cs.
+// This is where I get the catalog for the public home page,
+// and where "Suggest a supply" is saved. It's registered as Scoped in Program.cs.
 
 using AMS_Shopee.Data;
 using AMS_Shopee.Data.Entities;
@@ -27,16 +27,27 @@ public sealed record CatalogItem(
     uint ReorderLevel,
     bool IsPerishable = false,
     DateTime? ManufacturedOn = null,
-    DateTime? ExpiresOn = null)
+    DateTime? ExpiresOn = null,
+    bool MfdMonthOnly = false,
+    bool ExpMonthOnly = false,
+    string? ColorOptions = null)
 {
+    /// Colors the offices can choose from (most items have none).
+    public IReadOnlyList<ItemColor> Colors => _colors ??= ItemColors.Parse(ColorOptions);
+    private IReadOnlyList<ItemColor>? _colors;
+
+    /// "Mar 15, 2027", or "Mar 2027" when the pack only shows the month and year.
+    public static string FormatDate(DateTime d, bool monthOnly, bool longMonth = false) =>
+        d.ToString(monthOnly ? (longMonth ? "MMMM yyyy" : "MMM yyyy") : (longMonth ? "MMMM d, yyyy" : "MMM d, yyyy"));
+
     public StockLevel Level => RequisitionService.LevelOf(StockOnHand, ReorderLevel);
 
-    /// Days until the EXP (negative = expired); null when the item doesn't expire.
+    /// Days until the EXP (negative means expired), null if the item doesn't expire.
     public int? DaysToExpiry => IsPerishable && ExpiresOn is { } e
         ? (e.Date - TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, AMS_Shopee.Services.PhZone.Manila).Date).Days
         : null;
 
-    /// Expiring within this many days is shown in amber.
+    /// Items expiring within this many days are shown in amber.
     public const int ExpirySoonDays = 90;
     public string ExpiryCss => DaysToExpiry switch { < 0 => "is-expired", <= ExpirySoonDays => "is-soon", _ => "" };
 }
@@ -57,7 +68,7 @@ public sealed class CatalogService(IDbContextFactory<AmsDbContext> dbFactory)
     {
         await using var db = await dbFactory.CreateDbContextAsync(ct);
         return await db.ItemCategories.AsNoTracking()
-            .Where(c => c.SupplyItems.Any(i => i.IsActive != false))     // hide empty categories
+            .Where(c => c.SupplyItems.Any(i => i.IsActive != false))     // hide categories with no items
             .OrderBy(c => c.SortOrder).ThenBy(c => c.CategoryName)
             .Select(c => new CatalogCategory(c.CategoryId, c.CategoryName, c.Icon))
             .ToListAsync(ct);
@@ -131,7 +142,7 @@ public sealed class CatalogService(IDbContextFactory<AmsDbContext> dbFactory)
         return new(true, "Thanks! AMS will review your suggestion.");
     }
 
-    // Shared projection (kept as an expression so EF can translate it)
+    // Shared projection (I kept it as an expression so EF can turn it into SQL)
     private static readonly System.Linq.Expressions.Expression<Func<SupplyItem, CatalogItem>> Project =
         i => new CatalogItem(
             i.ItemId, i.StockNo, i.ItemName, i.Specifications, i.UnitOfMeasure,
@@ -139,7 +150,7 @@ public sealed class CatalogService(IDbContextFactory<AmsDbContext> dbFactory)
             i.Category != null ? i.Category.CategoryName : null,
             i.Category != null ? i.Category.Icon : null,
             i.UnitPrice, i.ImagePath, i.StockOnHand, i.ReorderLevel,
-            i.IsPerishable, i.ManufacturedOn, i.ExpiresOn);
+            i.IsPerishable, i.ManufacturedOn, i.ExpiresOn, i.MfdMonthOnly, i.ExpMonthOnly, i.ColorOptions);
 
     private static string? Clip(string? s, int max)
     {

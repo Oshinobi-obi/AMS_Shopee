@@ -1,6 +1,6 @@
-// HelpContent.cs — the questions and answers on the Help / FAQ page (/help).
+// These are the questions and answers on the Help / FAQ page (/help).
 // Plain text: a blank line starts a new paragraph, and lines starting with "1." or "•"
-// are shown as steps. Keep answers short and in the words offices use.
+// are shown as steps. I keep the answers short and in the words the offices use.
 
 namespace AMS_Shopee.Services.Ui;
 
@@ -14,10 +14,10 @@ public static class HelpContent
     [
         new("start", "Getting started", "bi-rocket-takeoff",
         [
-            new("what-is", "What is AMS Supplies?",
-                "AMS Supplies is where offices of the Regional Office request common-use office supplies from the Asset Management Section (AMS).\n\n" +
+            new("what-is", "What is e-SRS?",
+                "e-SRS is where offices of the Regional Office request common-use office supplies from the Asset Management Section (AMS).\n\n" +
                 "You browse the catalog, add what you need to your cart within your office's APP-CSE, and submit a Requisition and Issue Slip (RIS). " +
-                "AMS reviews it in AMS StockWatch, and you follow every step here until the items are issued.",
+                "AMS reviews it in e-PINS, and you follow every step here until the items are issued.",
                 "about portal shopee system"),
             new("account", "How do I get an account?",
                 "Each office has its own account, created by AMS. Ask your office's supply focal person or the Asset Management Section for the username and starting password.\n\n" +
@@ -160,15 +160,40 @@ public static class HelpContent
                 "signed copy pdf download scanned proof"),
         ]),
 
+        new("accountability", "My accountability (property)", "bi-person-vcard",
+        [
+            new("acc-what", "What is the My accountability page?",
+                "It shows the property under your name: every Property Acknowledgement Receipt (PAR), Inventory Custodian Slip (ICS) and Return Slip that AMS filed for you, with the property listed on each.\n\n" +
+                "Open it from My accountability at the top of the page. You don't need to log in: choose your office, then your name.",
+                "accountability property par ics return slip ro personnel"),
+            new("acc-view", "How do I see, download or print my PAR or ICS?",
+                "Click a document to open it. The PDF appears with its details and the property on it. Click Download to save a copy, or Print to print it.\n\n" +
+                "On a phone, tap Open the PDF; it opens in your phone's PDF viewer, where you can save or share it.",
+                "view download print pdf copy"),
+            new("acc-missing", "My name or a document isn't there.",
+                "Your name appears once AMS adds you as RO personnel of your office. Documents appear once AMS uploads the signed PAR, ICS or Return Slip in e-PINS. " +
+                "If something is missing or wrong, contact the Asset Management Section.",
+                "missing name not listed wrong document"),
+            new("acc-returned", "What does Returned mean?",
+                "The property on that PAR or ICS was returned to AMS, and AMS filed the signed Return Slip. It is no longer counted as in your care.",
+                "returned return slip in your care"),
+            new("acc-value", "How is the total value counted?",
+                "It adds up the property in the AMS property register that is under your name and still in your care: quantity × unit cost of each item. " +
+                "When a PAR or ICS is returned, its property changes to Returned in the register and no longer counts.\n\n" +
+                "A document shows no value until AMS links the register items written on it.",
+                "total value amount cost worth computed items count"),
+        ]),
+
         new("other", "Other questions", "bi-three-dots",
         [
             new("announcements", "Where do announcements from AMS appear?",
-                "At the top of every page, under the blue bar. Urgent ones are red. Close one with ✕ once you have read it; a new announcement shows up by itself, with a sound.",
+                "At the top of every page, under the blue bar. Each one shows how important it is (Information, Important or Urgent, in red), when it was posted and until when it runs.\n\n" +
+                "Announcements can't be closed: they stay on every page until their end date, or until AMS takes them down. A new announcement shows up by itself, with a sound.",
                 "announcement notice message bar"),
             new("dark-mode", "How do I switch to dark mode?",
                 "Click the sun/moon button at the top right. Your choice is remembered on that computer. Printouts always come out on white paper.",
                 "dark light theme mode night"),
-            new("phone", "Can I use AMS Supplies on my phone?",
+            new("phone", "Can I use e-SRS on my phone?",
                 "Yes. The site works on phones and tablets. You can browse, request, follow your requisitions and view the signed RIS. For printing the RIS, a computer is easier.",
                 "mobile phone tablet cellphone"),
             new("whats-new", "How do I know what changed in the system?",

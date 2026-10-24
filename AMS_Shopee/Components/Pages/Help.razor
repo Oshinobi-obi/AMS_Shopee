@@ -1,9 +1,10 @@
 @page "/help"
 @using AMS_Shopee.Services.Ui
 
-<PageTitle>Help and FAQ | AMS</PageTitle>
+<PageTitle>Help and FAQ | e-SRS</PageTitle>
 
 <section class="page-head">
+    <SeasonDecor />
     <div class="container-xl">
         <h1>Help and FAQ</h1>
         <p>Answers to common questions about requesting office supplies from the Asset Management Section.</p>
@@ -95,7 +96,7 @@
     private bool Searching => !string.IsNullOrWhiteSpace(_query);
     private int Total => HelpContent.Topics.Sum(t => Matches(t).Count);
 
-    /// Every word typed must appear in the question, answer or keywords.
+    /// Every word typed has to be in the question, answer or keywords.
     private List<HelpQa> Matches(HelpTopic t)
     {
         if (!Searching) return t.Questions.ToList();
@@ -109,7 +110,7 @@
 
     private sealed record Block(bool IsList, bool Ordered, List<string> Lines);
 
-    /// Paragraphs are separated by blank lines; lines starting with "1." or "•" become lists.
+    /// Paragraphs are separated by blank lines. Lines starting with "1." or "•" become lists.
     private static IEnumerable<Block> Blocks(string text)
     {
         foreach (var para in text.Split("\n\n"))

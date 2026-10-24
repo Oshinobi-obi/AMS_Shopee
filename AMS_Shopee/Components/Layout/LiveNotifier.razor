@@ -1,11 +1,12 @@
-@* Live updates for offices: refreshes open pages when AMS acts on a requisition
-   and announces it with a sound, a toast and (in the background) a desktop
-   notification. Everyone's catalog also refreshes when stock changes. *@
+@* This is the live notifier for offices. When AMS acts on a requisition, I refresh the open
+   pages and let the office know with a sound, a toast, and a desktop notification if the tab
+   is in the background. The catalog also refreshes for everyone when stock changes. *@
 @implements IDisposable
 @inject RisEventFeed Feed
 @inject LiveRefresh Refresh
 @inject ToastService Toast
 @inject IJSRuntime JS
+@inject SeasonState Season
 
 @if (_showPrompt)
 {
@@ -43,7 +44,7 @@
         {
             if (_user?.IsOffice == true)
             {
-                await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { ApprovedSound, IssuedSound, RejectedSound });   // (object): send ONE array, not one argument per sound
+                await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { ApprovedSound, IssuedSound, RejectedSound });   // (object) so I send ONE array, not one argument per sound
                 _showPrompt = await JS.InvokeAsync<string>("amsLive.permission") == "default";
             }
             _ready = true;
@@ -96,10 +97,16 @@
             result == "granted" ? ModalVariant.Success : ModalVariant.Info);
     }
 
-    // Announcements, catalog, APP-CSE, … changed: open pages reload that data quietly.
+    // Announcements, catalog, APP-CSE and so on changed, so the open pages reload that data quietly.
     private void OnAreas(IReadOnlySet<string> areas) => _ = InvokeAsync(async () =>
     {
         if (!_ready) return;
+        if (areas.Contains("season"))
+        {
+            // The seasonal theme was changed in e-PINS, so I switch the open page to it right away.
+            Season.Forget();
+            try { await JS.InvokeVoidAsync("amsSeason.set", await Season.CurrentAsync()); } catch (JSDisconnectedException) { }
+        }
         await Refresh.RaiseAreasAsync(areas);
     });
 

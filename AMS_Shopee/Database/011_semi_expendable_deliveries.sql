@@ -1,13 +1,13 @@
--- =====================================================================
--- ams_stockwatch :: 011 — SPLV / SPHV DELIVERIES (ICS and PAR numbers)
--- Semi-expendable property delivered to AMS. Each item line gets its number:
---   SPLV            → ICS
---   SPHV < 50,000   → ICS      SPHV ≥ 50,000 → PAR
--- Number = year-month delivered - running number(s), e.g. 2026-01-001-007 for 7 units.
--- The running number keeps counting all year (separately for SPLV ICS, SPHV ICS and
--- SPHV PAR) and starts again at 001 every new year.
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 011: SPLV / SPHV DELIVERIES (ICS and PAR numbers)
+-- Semi-expendable property delivered to AMS. Each item line gets a number:
+--   SPLV               ICS
+--   SPHV below 50,000  ICS      SPHV 50,000 and up  PAR
+-- Number = year-month delivered - running number(s), for example 2026-01-001-007 for 7 units.
+-- The running number keeps counting the whole year (separately for SPLV ICS, SPHV ICS and
+-- SPHV PAR) and goes back to 001 every new year.
 -- Safe to run again. On MonsterASP use 011_semi_expendable_deliveries_MonsterASP.sql.
--- =====================================================================
+-- -------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS se_deliveries (
   delivery_id    INT UNSIGNED  NOT NULL AUTO_INCREMENT,
@@ -38,7 +38,7 @@ CREATE TABLE IF NOT EXISTS se_delivery_items (
   doc_year     SMALLINT UNSIGNED NOT NULL,
   seq_start    INT UNSIGNED      NOT NULL,
   seq_end      INT UNSIGNED      NOT NULL,
-  doc_no       VARCHAR(40)       NOT NULL,           -- e.g. 2026-01-001-007
+  doc_no       VARCHAR(40)       NOT NULL,           -- for example 2026-01-001-007
   PRIMARY KEY (line_id),
   UNIQUE KEY ux_sedi_number (doc_year, category, doc_type, seq_start),
   KEY ix_sedi_delivery (delivery_id),

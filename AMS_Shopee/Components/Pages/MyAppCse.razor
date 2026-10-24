@@ -6,9 +6,10 @@
 @inject LiveRefresh Live
 @implements IDisposable
 
-<PageTitle>APP-CSE | AMS</PageTitle>
+<PageTitle>APP-CSE | e-SRS</PageTitle>
 
 <section class="page-head">
+    <SeasonDecor />
     <div class="container-xl">
         <h1>@(_report is null ? "Your APP-CSE" : $"{_report.OfficeAcronym} APP-CSE, FY {_report.FiscalYear}")</h1>
         <p>
@@ -21,7 +22,7 @@
 <div class="container-xl page-body">
     @if (_loading)
     {
-        <p class="text-secondary py-5 text-center">Loading your APP-CSE…</p>
+        <LoadingSkeleton Kind="table" Rows="8" Label="Loading your APP-CSE…" />
     }
     else if (_user is null)
     {
@@ -182,7 +183,7 @@
         Live.Changed += OnLiveAsync;
     }
 
-    // Issued and pending figures update when AMS approves or an RIS is cancelled.
+    // Issued and pending numbers update when AMS approves or an RIS is cancelled.
     private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
     {
         if (_user?.IsOffice != true || _report is null || !events.Any(e => e.OfficeId == _user.OfficeId)) return;
@@ -214,7 +215,7 @@
 
     private async Task PrintAsync() => await JS.InvokeVoidAsync("print");
 
-    // Live: when appcse, catalog change on either website, reload without a refresh.
+    // Live update: when APP-CSE or the catalog changes on either website, reload without refreshing.
     private static readonly string[] LiveAreas = ["appcse", "catalog"];
     protected override void OnInitialized() => Live.AreasChanged += OnAreasAsync;
 

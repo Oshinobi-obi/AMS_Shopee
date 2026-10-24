@@ -1,25 +1,21 @@
--- =====================================================================
--- ams_stockwatch :: Migration 001 — Requisition Portal (APP-CSE + RIS)
--- Target  : MySQL 8.0.16+ (CHECK constraints are enforced from 8.0.16)
--- Run ONCE. MySQL DDL auto-commits, so this script is NOT atomic.
--- Back up first:
+-- -------------------------------------------------------------------
+-- ams_stockwatch, migration 001: Requisition Portal (APP-CSE and RIS)
+-- Needs MySQL 8.0.16 or newer (that's when CHECK constraints started working)
+-- Run it only ONCE. MySQL saves table changes right away, so this can't be undone halfway.
+-- Make a backup first:
 --   mysqldump -u root -p --routines --triggers ams_stockwatch > pre_001.sql
--- =====================================================================
+-- -------------------------------------------------------------------
 
 USE ams_stockwatch;
 SET NAMES utf8mb4;
 
--- ---------------------------------------------------------------------
--- 0. Migration bookkeeping
--- ---------------------------------------------------------------------
+-- 0. Migration record
 CREATE TABLE IF NOT EXISTS schema_migrations (
   version     VARCHAR(50)  NOT NULL PRIMARY KEY,
   applied_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 1. OFFICES — hierarchy + requisition flag (keeps existing rows/FKs)
--- ---------------------------------------------------------------------
+-- 1. OFFICES: parent office and the requisition flag (existing rows stay)
 ALTER TABLE offices
   ADD COLUMN parent_office_id INT UNSIGNED NULL AFTER office_acronym,
   ADD COLUMN office_type ENUM('Office','Division','Section','Unit','External')
@@ -32,8 +28,8 @@ ALTER TABLE offices
   ADD CONSTRAINT fk_offices_parent
       FOREIGN KEY (parent_office_id) REFERENCES offices (office_id);
 
--- Existing rows (ids 8–14). COA stays (ro_personnel references it) but
--- cannot requisition.
+-- These rows already exist (ids 8 to 14). COA stays because ro_personnel uses it,
+-- but it can't make requisitions.
 UPDATE offices SET office_type='Office', sort_order=1  WHERE office_acronym='ORD';
 UPDATE offices SET office_type='Office', sort_order=2  WHERE office_acronym='OARD';
 UPDATE offices SET office_type='Unit',   sort_order=3  WHERE office_acronym='Legal';
@@ -43,7 +39,7 @@ UPDATE offices SET office_type='Section',sort_order=22 WHERE office_acronym='AMS
 UPDATE offices SET office_type='External', can_requisition=0, sort_order=99
  WHERE office_acronym='COA';
 
--- The 16 offices not yet in the table. Review names/acronyms before running.
+-- The 16 offices that aren't in the table yet. Check the names and acronyms before running.
 INSERT INTO offices (office_name, office_acronym, office_type, sort_order) VALUES
  ('Learner Rights and Protection Office',              'LRPO',        'Office',   6),
  ('Curriculum and Learning Management Division',       'CLMD',        'Division', 7),
@@ -62,7 +58,7 @@ INSERT INTO offices (office_name, office_acronym, office_type, sort_order) VALUE
  ('Personnel Section',                                 'PERSONNEL',   'Section', 20),
  ('Procurement Unit',                                  'PROCUREMENT', 'Unit',    21);
 
--- Parent links (drive the "Division" vs "Office" fields on the RIS)
+-- Parent offices (these decide the "Division" and "Office" fields on the RIS)
 UPDATE offices c JOIN offices p ON p.office_acronym='CLMD'
    SET c.parent_office_id=p.office_id WHERE c.office_acronym='CLMD-LRMS';
 UPDATE offices c JOIN offices p ON p.office_acronym='ESSD'
@@ -74,9 +70,7 @@ UPDATE offices c JOIN offices p ON p.office_acronym='ADMIN'
    SET c.parent_office_id=p.office_id
  WHERE c.office_acronym IN ('CASH','PERSONNEL','PROCUREMENT','AMS');
 
--- ---------------------------------------------------------------------
--- 2. USERS — add office link and an 'Office' (client) role
--- ---------------------------------------------------------------------
+-- 2. USERS: link to the office and a new 'Office' role
 ALTER TABLE users
   MODIFY COLUMN role ENUM('SuperAdmin','Admin','Office')
          COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT 'Office',
@@ -91,9 +85,7 @@ UPDATE users
 ALTER TABLE users
   ADD CONSTRAINT chk_users_office_role CHECK (role <> 'Office' OR office_id IS NOT NULL);
 
--- ---------------------------------------------------------------------
--- 3. SYSTEM SETTINGS (RIS header values, thresholds)
--- ---------------------------------------------------------------------
+-- 3. SYSTEM SETTINGS (RIS header values and limits)
 CREATE TABLE system_settings (
   setting_key   VARCHAR(100) NOT NULL PRIMARY KEY,
   setting_value VARCHAR(500) NOT NULL,
@@ -107,9 +99,7 @@ INSERT INTO system_settings (setting_key, setting_value) VALUES
  ('stock.default_reorder',    '10'),
  ('cart.allow_beyond_stock',  'true');
 
--- ---------------------------------------------------------------------
 -- 4. CATALOG
--- ---------------------------------------------------------------------
 CREATE TABLE item_categories (
   category_id   INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   category_name VARCHAR(100) NOT NULL,
@@ -135,13 +125,13 @@ CREATE TABLE supply_items (
   unit_of_measure  VARCHAR(30)  NOT NULL,
   category_id      INT UNSIGNED NULL,
   supplier_id      INT UNSIGNED NULL,
-  property_type_id INT UNSIGNED NULL,          -- NULL for consumables; SE/PPE if ever listed
+  property_type_id INT UNSIGNED NULL,          -- NULL for consumables, SE/PPE if ever listed
   unit_price       DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   image_path       VARCHAR(500) NULL,
-  stock_on_hand    INT          NOT NULL DEFAULT 0,  -- live AMS warehouse count
-  reorder_level    INT UNSIGNED NOT NULL DEFAULT 10, -- <= this => yellow badge
+  stock_on_hand    INT          NOT NULL DEFAULT 0,  -- current count in the AMS warehouse
+  reorder_level    INT UNSIGNED NOT NULL DEFAULT 10, -- at or below this the badge turns yellow
   is_active        TINYINT(1)   NOT NULL DEFAULT 1,
-  row_version      INT UNSIGNED NOT NULL DEFAULT 0,  -- EF concurrency token for admin edits
+  row_version      INT UNSIGNED NOT NULL DEFAULT 0,  -- for EF so two admins don't overwrite each other's edits
   created_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_stock_no (stock_no),
@@ -155,9 +145,7 @@ CREATE TABLE supply_items (
   CONSTRAINT chk_items_price   CHECK (unit_price >= 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 5. APP-CSE UPLOAD BATCHES (audit trail of each spreadsheet AMS loads)
--- ---------------------------------------------------------------------
+-- 5. APP-CSE UPLOADS (record of each spreadsheet AMS uploads)
 CREATE TABLE app_cse_uploads (
   upload_id          INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   fiscal_year        SMALLINT UNSIGNED NOT NULL,
@@ -171,19 +159,17 @@ CREATE TABLE app_cse_uploads (
   CONSTRAINT fk_upload_user FOREIGN KEY (uploaded_by) REFERENCES users (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 6. APP-CSE ALLOCATIONS (one row per office × item × year)
+-- 6. APP-CSE ALLOCATIONS (one row per office, item and year)
 --    remaining = allocated_qty - issued_qty - (qty in PendingApproval RIS)
--- ---------------------------------------------------------------------
 CREATE TABLE app_cse_allocations (
   allocation_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   office_id     INT UNSIGNED NOT NULL,
   item_id       INT UNSIGNED NOT NULL,
   fiscal_year   SMALLINT UNSIGNED NOT NULL,
   allocated_qty INT UNSIGNED NOT NULL,
-  q1_qty INT UNSIGNED NULL, q2_qty INT UNSIGNED NULL,   -- optional quarterly
-  q3_qty INT UNSIGNED NULL, q4_qty INT UNSIGNED NULL,   -- breakdown from APP
-  issued_qty    INT UNSIGNED NOT NULL DEFAULT 0,        -- bumped on approval
+  q1_qty INT UNSIGNED NULL, q2_qty INT UNSIGNED NULL,   -- optional per quarter
+  q3_qty INT UNSIGNED NULL, q4_qty INT UNSIGNED NULL,   -- from the APP
+  issued_qty    INT UNSIGNED NOT NULL DEFAULT 0,        -- goes up when approved
   upload_id     INT UNSIGNED NULL,
   updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   UNIQUE KEY uq_alloc (office_id, item_id, fiscal_year),
@@ -194,9 +180,7 @@ CREATE TABLE app_cse_allocations (
   CONSTRAINT chk_alloc_issued CHECK (issued_qty <= allocated_qty)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 7. CART (server-side, survives refresh / circuit reconnect)
--- ---------------------------------------------------------------------
+-- 7. CART (saved in the database, so it stays after a refresh or reconnect)
 CREATE TABLE cart_items (
   cart_item_id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   user_id      INT UNSIGNED NOT NULL,
@@ -211,9 +195,7 @@ CREATE TABLE cart_items (
   CONSTRAINT chk_cart_qty CHECK (quantity > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
 -- 8. RIS (Appendix 63)
--- ---------------------------------------------------------------------
 CREATE TABLE ris_number_sequences (
   fiscal_year SMALLINT UNSIGNED NOT NULL,
   seq_month   TINYINT UNSIGNED  NOT NULL,
@@ -226,7 +208,7 @@ CREATE TABLE ris_transactions (
   ris_no                     VARCHAR(30)  NOT NULL,
   office_id                  INT UNSIGNED NOT NULL,
   fiscal_year                SMALLINT UNSIGNED NOT NULL,
-  -- header snapshot (frozen at submission so later edits don't alter the slip)
+  -- header copied at submission so later edits don't change the slip
   entity_name                VARCHAR(200) NOT NULL,
   fund_cluster               VARCHAR(10)  NOT NULL,
   division_name              VARCHAR(150) NOT NULL,
@@ -270,14 +252,14 @@ CREATE TABLE ris_items (
   ris_id           INT UNSIGNED NOT NULL,
   item_id          INT UNSIGNED NOT NULL,
   line_no          SMALLINT UNSIGNED NOT NULL,
-  -- snapshots (catalog may change later; the slip must not)
+  -- copied values, because the catalog can change later but the slip shouldn't
   stock_no         VARCHAR(30)  NOT NULL,
   unit_of_measure  VARCHAR(30)  NOT NULL,
   item_description VARCHAR(700) NOT NULL,
   unit_cost        DECIMAL(12,2) NOT NULL DEFAULT 0.00,
   requested_qty    INT UNSIGNED NOT NULL,
   stock_available  TINYINT(1)   NULL,   -- RIS "Stock Available? Yes/No"
-  issued_qty       INT UNSIGNED NULL,   -- may be < requested (partial issue)
+  issued_qty       INT UNSIGNED NULL,   -- can be less than requested (partial issue)
   remarks          VARCHAR(255) NULL,
   UNIQUE KEY uq_ris_item (ris_id, item_id),
   KEY idx_ris_items_item (item_id),
@@ -300,8 +282,8 @@ CREATE TABLE ris_status_history (
   CONSTRAINT fk_hist_user FOREIGN KEY (changed_by) REFERENCES users (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Stock ledger: every change to supply_items.stock_on_hand gets a row.
--- Feeds Stock Card, Supplies Ledger Card and RSMI reports.
+-- Stock ledger: every change to supply_items.stock_on_hand adds a row here.
+-- The Stock Card, Supplies Ledger Card and RSMI reports come from this.
 CREATE TABLE stock_movements (
   movement_id    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   item_id        INT UNSIGNED NOT NULL,
@@ -312,7 +294,7 @@ CREATE TABLE stock_movements (
   reference_type VARCHAR(20) NULL,      -- 'RIS', 'IAR', 'ADJ', ...
   reference_no   VARCHAR(50) NULL,
   ris_id         INT UNSIGNED NULL,
-  office_id      INT UNSIGNED NULL,     -- receiving office for ISSUE rows
+  office_id      INT UNSIGNED NULL,     -- office that received it, for ISSUE rows
   remarks        VARCHAR(500) NULL,
   performed_by   INT UNSIGNED NOT NULL,
   created_at     DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -325,9 +307,7 @@ CREATE TABLE stock_movements (
   CONSTRAINT chk_mov_qty   CHECK (quantity > 0)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 9. SUPPLY SUGGESTIONS (guests allowed → office/user nullable)
--- ---------------------------------------------------------------------
+-- 9. SUPPLY SUGGESTIONS (guests can suggest too, so office and user can be null)
 CREATE TABLE supply_suggestions (
   suggestion_id        INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   office_id            INT UNSIGNED NULL,
@@ -350,10 +330,8 @@ CREATE TABLE supply_suggestions (
   CONSTRAINT fk_sugg_reviewer FOREIGN KEY (reviewed_by) REFERENCES users (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ---------------------------------------------------------------------
--- 10. READ VIEW for the allocation banner
+-- 10. VIEW for the allocation banner
 --     "APP-CSE Total | Requested to Date | Remaining Balance"
--- ---------------------------------------------------------------------
 CREATE OR REPLACE VIEW v_office_item_balance AS
 SELECT a.office_id,
        a.item_id,

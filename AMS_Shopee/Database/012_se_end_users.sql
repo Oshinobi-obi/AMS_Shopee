@@ -1,11 +1,11 @@
--- =====================================================================
--- ams_stockwatch :: 012 — END USERS ON SPLV / SPHV DELIVERIES
--- Each delivered item can name its end user: an office, or an RO personnel.
---   se_deliveries.end_user_type   'Office' or 'Personnel' (NULL = not recorded)
---   se_delivery_items.office_id / personnel_id / end_user (name kept as recorded)
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 012: END USERS ON SPLV / SPHV DELIVERIES
+-- Each delivered item can have an end user: an office or an RO personnel.
+--   se_deliveries.end_user_type   'Office' or 'Personnel' (NULL means not recorded)
+--   se_delivery_items.office_id / personnel_id / end_user (name saved as entered)
 -- Run after 011.
 -- Safe to run again.
--- =====================================================================
+-- -------------------------------------------------------------------
 
 SET @has_col := (SELECT COUNT(*) FROM information_schema.COLUMNS
                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'se_deliveries' AND COLUMN_NAME = 'end_user_type');

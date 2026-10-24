@@ -1,4 +1,4 @@
-// MyRequisitionQueries.cs — read models for an office following up on its own RIS.
+// This is where I get the data for an office checking its own RIS.
 
 using AMS_Shopee.Components.Requisition;
 using AMS_Shopee.Data;
@@ -43,7 +43,7 @@ public sealed record MySuggestion(uint Id, string ItemName, string? Description,
 
 public sealed class MyRequisitionQueries(IDbContextFactory<AmsDbContext> dbFactory)
 {
-    /// "Suggest a supply" requests from this office (or this account), newest first, with AMS's answer.
+    /// "Suggest a supply" requests from this office (or this account), newest first, with the answer from AMS.
     public async Task<List<MySuggestion>> SuggestionsAsync(CurrentUser? u, CancellationToken ct = default)
     {
         if (u is null) return [];
@@ -90,7 +90,7 @@ public sealed class MyRequisitionQueries(IDbContextFactory<AmsDbContext> dbFacto
             .ToListAsync(ct);
     }
 
-    /// Only returns a RIS that belongs to the signed-in office.
+    /// Only returns the RIS if it belongs to the logged-in office.
     public async Task<MyRisDetail?> GetAsync(CurrentUser? u, uint risId, CancellationToken ct = default)
     {
         if (u is null || !u.IsOffice) return null;

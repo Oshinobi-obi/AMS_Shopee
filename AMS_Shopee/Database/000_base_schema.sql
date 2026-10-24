@@ -1,14 +1,14 @@
--- =====================================================================
--- 000 — BASE SCHEMA for a brand-new ams_stockwatch database.
--- Run this FIRST on an empty database, then 001 → 006 in order.
--- (An existing database already has these tables: skip this file.)
+-- -------------------------------------------------------------------
+-- 000 BASE SCHEMA for a new ams_stockwatch database.
+-- Run this first on an empty database, then 001 to 006 in order.
+-- If the database already has these tables, skip this file.
 --
--- Creates: users, offices, RO personnel, property types and documents,
--- login attempts, user activity and sign-in key storage.
+-- This creates: users, offices, RO personnel, property types and documents,
+-- login attempts, user activity and the sign-in key storage.
 --
--- Starter account (AMS StockWatch):  superadmin  /  ChangeMe@2026
--- It MUST be changed at the first sign-in (the site enforces this).
--- =====================================================================
+-- Starter e-PINS account:  superadmin  /  ChangeMe@2026
+-- It has to be changed on the first sign-in (the site forces this).
+-- -------------------------------------------------------------------
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_role` (`role`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- The original offices (001 adds the remaining 16) and the two types of property
+-- The original offices (001 adds the other 16) and the two types of property
 INSERT IGNORE INTO `offices` VALUES (8,'Asset Management Section','AMS');
 INSERT IGNORE INTO `offices` VALUES (9,'Commission on Audit','COA');
 INSERT IGNORE INTO `offices` VALUES (10,'Office of the Regional Director','ORD');
@@ -117,7 +117,7 @@ INSERT IGNORE INTO `offices` VALUES (14,'Public Affairs Unit','PAU');
 INSERT IGNORE INTO `property_types` VALUES (2,'Property, Plant & Equipment (PPE)');
 INSERT IGNORE INTO `property_types` VALUES (1,'Semi-Expendable (SE)');
 
--- Starter Super Admin (temporary password ChangeMe@2026, must be changed at first sign-in)
+-- Starter Super Admin (temporary password ChangeMe@2026, has to be changed on first sign-in)
 INSERT IGNORE INTO `users` (`user_id`, `username`, `email`, `full_name`, `display_name`, `password_hash`, `role`, `is_active`, `require_password_change`) VALUES (1, 'superadmin', 'superadmin@ams.local', 'AMS Super Admin', 'Super Admin', '$2b$12$1Ls5Ja48hMXLcPDcOm1mYuooYZ0e5baydqVGwPGRA2k3P/2sWyxDW', 'SuperAdmin', 1, 1);
 
 SET FOREIGN_KEY_CHECKS = 1;

@@ -1,0 +1,44 @@
+@* This is the grey placeholder shown while a page loads, so it doesn't jump from blank to full.
+   Kind can be "list" (requisition rows), "table" (APP-CSE rows) or "detail" (requisition page). *@
+
+<div class="skel-wrap" aria-busy="true" role="status">
+    <span class="visually-hidden">@Label</span>
+    @switch (Kind)
+    {
+        case "table":
+            <div class="panel skel-panel">
+                @for (var i = 0; i < Rows; i++)
+                {
+                    <div class="skel-trow"><span class="skel w-15"></span><span class="skel w-35"></span><span class="skel w-10"></span><span class="skel w-10"></span><span class="skel w-10"></span></div>
+                }
+            </div>
+            break;
+        case "detail":
+            <div class="cart-layout">
+                <div class="panel skel-panel">
+                    <span class="skel w-30 skel-lg"></span>
+                    @for (var i = 0; i < 4; i++)
+                    {
+                        <div class="skel-step"><span class="skel skel-dot"></span><span class="skel w-50"></span></div>
+                    }
+                    <span class="skel w-90 mt-3"></span>
+                </div>
+                <div class="panel skel-panel skel-paper"><span class="skel w-60 skel-lg mx-auto"></span><span class="skel w-100 skel-block"></span></div>
+            </div>
+            break;
+        default:
+            <div class="req-list">
+                @for (var i = 0; i < Rows; i++)
+                {
+                    <div class="req-row skel-row"><div class="req-main"><span class="skel w-25 skel-lg"></span><span class="skel w-70"></span><span class="skel w-40"></span></div></div>
+                }
+            </div>
+            break;
+    }
+</div>
+
+@code {
+    [Parameter] public string Kind { get; set; } = "list";
+    [Parameter] public int Rows { get; set; } = 4;
+    [Parameter] public string Label { get; set; } = "Loading…";
+}

@@ -8,10 +8,12 @@
 @inject AddToCartFlow Flow
 @inject NavigationManager Nav
 @inject ILogger<Cart> Log
+@inject IJSRuntime JS
 
-<PageTitle>Your requisition | AMS</PageTitle>
+<PageTitle>Your requisition | e-SRS</PageTitle>
 
 <section class="page-head">
+    <SeasonDecor />
     <div class="container-xl">
         <h1>Your requisition</h1>
         <p>Review your items, state the purpose, and check the slip before sending it to AMS.</p>
@@ -21,7 +23,7 @@
 <div class="container-xl page-body">
     @if (_loading)
     {
-        <p class="text-secondary py-5 text-center">Loading your cart…</p>
+        <LoadingSkeleton Kind="detail" Label="Loading your cart…" />
     }
     else if (_user is null)
     {
@@ -96,6 +98,55 @@
                                 }
                                 <p class="cart-meta">Stock no. @line.StockNo, ₱@line.UnitPrice.ToString("N2") per @line.Unit</p>
 
+                                @if (line.HasColors)
+                                {
+                                    <ul class="cart-colors" aria-label="@($"Colors of {line.Name}")">
+                                        @foreach (var (color, cqty) in line.Colors)
+                                        {
+                                            var hex = line.HexOf(color);
+                                            <li @key="color">
+                                                <span class="cart-color-name"><span class="swatch @(ItemColors.IsLight(hex) ? "is-light" : "")" style="background:@hex" aria-hidden="true"></span>@color</span>
+                                                <div class="qty-stepper qty-sm" role="group" aria-label="@($"Quantity of {color}")">
+                                                    <button type="button" aria-label="@($"Fewer {color}")" disabled="@(_busyItem is not null || cqty <= 1)"
+                                                            @onclick="() => ChangeColorQtyAsync(line, color, cqty - 1)"><i class="bi bi-dash" aria-hidden="true"></i></button>
+                                                    <input autocomplete="off" type="number" min="1" inputmode="numeric" value="@cqty" disabled="@(_busyItem is not null)"
+                                                           aria-label="@($"Quantity of {color}")" @onchange="e => OnColorQtyInput(line, color, e)" />
+                                                    <button type="button" aria-label="@($"More {color}")" disabled="@(_busyItem is not null || (_appCseRequired && (line.Balance is null || line.Quantity >= line.Balance.Remaining)))"
+                                                            @onclick="() => ChangeColorQtyAsync(line, color, cqty + 1)"><i class="bi bi-plus" aria-hidden="true"></i></button>
+                                                </div>
+                                                <button type="button" class="cart-color-remove" title="@($"Remove {color}")" aria-label="@($"Remove {color}")"
+                                                        disabled="@(_busyItem is not null)" @onclick="() => ChangeColorQtyAsync(line, color, 0)"><i class="bi bi-x-lg" aria-hidden="true"></i></button>
+                                            </li>
+                                        }
+                                        @if (line.AnyColorQty > 0)
+                                        {
+                                            <li><span class="cart-color-name"><span class="swatch is-any" aria-hidden="true"></span>Any color</span><b>@line.AnyColorQty</b></li>
+                                        }
+                                    </ul>
+                                    var more = line.Options.Where(o => !line.Colors.Any(c => c.Name.Equals(o.Name, StringComparison.OrdinalIgnoreCase))).ToList();
+                                    @if (more.Count > 0)
+                                    {
+                                        <div class="cart-add-color">
+                                            <span>Add a color:</span>
+                                            @foreach (var o in more)
+                                            {
+                                                var name = o.Name;
+                                                <button type="button" class="color-preset" disabled="@(_busyItem is not null)" @onclick="() => AddColorAsync(line, name)">
+                                                    <span class="swatch @(ItemColors.IsLight(o.Hex) ? "is-light" : "")" style="background:@o.Hex" aria-hidden="true"></span>@o.Name
+                                                </button>
+                                            }
+                                        </div>
+                                    }
+                                    <div class="cart-controls">
+                                        <span class="cart-color-total">Total <strong>@line.Quantity</strong> @line.Unit</span>
+                                        <button type="button" class="btn btn-link cart-remove" @onclick="() => RemoveAsync(line)"
+                                                disabled="@(_busyItem is not null)">
+                                            <i class="bi bi-trash3" aria-hidden="true"></i> Remove
+                                        </button>
+                                    </div>
+                                }
+                                else
+                                {
                                 <div class="cart-controls">
                                     <div class="qty-stepper qty-sm" role="group" aria-label="@($"Quantity of {line.Name}")">
                                         <button type="button" aria-label="Decrease quantity"
@@ -107,7 +158,7 @@
                                                disabled="@(_busyItem is not null)" aria-label="Quantity"
                                                @onchange="e => OnQtyInput(line, e)" />
                                         <button type="button" aria-label="Increase quantity"
-                                                disabled="@(_busyItem is not null || line.Balance is null || line.Quantity >= line.Balance.Remaining)"
+                                                disabled="@(_busyItem is not null || (_appCseRequired && (line.Balance is null || line.Quantity >= line.Balance.Remaining)))"
                                                 @onclick="() => ChangeQtyAsync(line, line.Quantity + 1)">
                                             <i class="bi bi-plus" aria-hidden="true"></i>
                                         </button>
@@ -118,8 +169,13 @@
                                         <i class="bi bi-trash3" aria-hidden="true"></i> Remove
                                     </button>
                                 </div>
+                                }
 
-                                @if (line.Balance is null)
+                                @if (!_appCseRequired)
+                                {
+                                    <text></text>
+                                }
+                                else if (line.Balance is null)
                                 {
                                     <p class="cart-note is-bad"><i class="bi bi-x-circle" aria-hidden="true"></i> No longer in your APP-CSE. Remove this item to submit.</p>
                                 }
@@ -228,7 +284,7 @@
     private uint? _busyItem;
     private string _purpose = "";
     private string? _purposeError;
-    private string _requestedByValue = "";   // <select> value; "" = blank
+    private string _requestedByValue = "";   // value of the <select>, "" means blank
     private uint? _requestedBy => uint.TryParse(_requestedByValue, out var id) ? id : null;
     private string _receivedByValue = "";
     private uint? _receivedBy => uint.TryParse(_receivedByValue, out var id) ? id : null;
@@ -237,8 +293,10 @@
     private PersonnelOption? SelectedPersonnel =>
         _cart?.Personnel.FirstOrDefault(p => p.Id == _requestedBy);
 
+    private bool _appCseRequired = true;
+
     private bool HasBlockingLines =>
-        _cart is not null && _cart.Lines.Any(l => l.Balance is null || l.Quantity > l.Balance.Remaining);
+        _appCseRequired && _cart is not null && _cart.Lines.Any(l => l.Balance is null || l.Quantity > l.Balance.Remaining);
 
     private RisDocumentModel RisModel => new()
     {
@@ -253,7 +311,7 @@
             .ToList(),
         RequestedBy = new RisSignatory(SelectedPersonnel?.FullName, SelectedPersonnel?.Position, DateTime.Today),
         ReceivedBy = SelectedReceiver is { } rc ? new RisSignatory(rc.FullName, rc.Position, null) : null,
-        // Date stays blank until AMS actually approves.
+        // The date stays blank until AMS approves it.
         ApprovedBy = _cart.ApprovedBy is { } a ? new RisSignatory(a.FullName, a.Position, null) : null,
     };
 
@@ -267,6 +325,7 @@
 
     private async Task ReloadAsync()
     {
+        _appCseRequired = await Requisitions.AppCseRequiredAsync();
         try
         {
             _cart = await OfficeQ.GetCartAsync(_user);
@@ -289,7 +348,7 @@
     private Task OnQtyInput(CartLineView line, ChangeEventArgs e) =>
         int.TryParse(e.Value?.ToString(), out var qty) && qty >= 1
             ? ChangeQtyAsync(line, qty)
-            : ReloadAsync();   // invalid entry: snap back to the saved value
+            : ReloadAsync();   // invalid number, go back to the saved value
 
     private async Task ChangeQtyAsync(CartLineView line, int qty)
     {
@@ -304,7 +363,46 @@
         finally
         {
             await ReloadAsync();
-            await CartBadge.RefreshAsync();   // badge; our own Changed handler skips while busy
+            await CartBadge.RefreshAsync();   // badge only, my own Changed handler skips while busy
+            _busyItem = null;
+        }
+    }
+
+    private Task OnColorQtyInput(CartLineView line, string color, ChangeEventArgs e) =>
+        int.TryParse(e.Value?.ToString(), out var qty) && qty >= 1
+            ? ChangeColorQtyAsync(line, color, qty)
+            : ReloadAsync();
+
+    private async Task ChangeColorQtyAsync(CartLineView line, string color, int qty)
+    {
+        _busyItem = line.ItemId;
+        try
+        {
+            var result = await Requisitions.SetCartColorQuantityAsync(_user, line.ItemId, color, qty);
+            if (!result.Allowed)
+                await Modal.WarningAsync(result.Issues[0].Title, result.Issues[0].Message);
+        }
+        finally
+        {
+            await ReloadAsync();
+            await CartBadge.RefreshAsync();
+            _busyItem = null;
+        }
+    }
+
+    private async Task AddColorAsync(CartLineView line, string color)
+    {
+        _busyItem = line.ItemId;
+        try
+        {
+            var result = await Requisitions.AddToCartAsync(_user, line.ItemId, 1, color);
+            if (!result.Allowed)
+                await Modal.WarningAsync(result.Issues[0].Title, result.Issues[0].Message);
+        }
+        finally
+        {
+            await ReloadAsync();
+            await CartBadge.RefreshAsync();
             _busyItem = null;
         }
     }
@@ -325,7 +423,7 @@
         finally
         {
             await ReloadAsync();
-            await CartBadge.RefreshAsync();   // badge; our own Changed handler skips while busy
+            await CartBadge.RefreshAsync();   // badge only, my own Changed handler skips while busy
             _busyItem = null;
         }
     }
@@ -357,7 +455,7 @@
 
         if (!confirmed || result is not { Ok: true })
         {
-            await ReloadAsync();   // something may have changed (e.g. balance used up elsewhere)
+            await ReloadAsync();   // something may have changed (for example the balance was used up somewhere else)
             return;
         }
 
@@ -366,6 +464,7 @@
         _receivedByValue = "";
         await CartBadge.RefreshAsync();
         Toast.Show($"{result.Message} Follow it here until AMS releases the items.");
+        try { await JS.InvokeVoidAsync("amsMotion.success", "Requisition submitted"); } catch (JSException) { }
         Nav.NavigateTo($"/my-requisitions/{result.RisId}");
     }
 
@@ -379,7 +478,7 @@
         <ul>
             @foreach (var l in _cart.Lines)
             {
-                <li><span>@l.Name</span><strong>@l.Quantity @l.Unit</strong></li>
+                <li><span>@l.Name@(l.Colors.Count > 0 ? $" ({ItemColors.Text(l.Colors)})" : "")</span><strong>@l.Quantity @l.Unit</strong></li>
             }
         </ul>
         <p class="submit-total">Estimated amount <strong>₱@_cart.EstimatedTotal.ToString("N2")</strong></p>

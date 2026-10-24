@@ -1,5 +1,5 @@
-// OfficeQueries.cs — read models for the signed-in office: the cart (with the
-// data the RIS preview needs) and the office's full APP-CSE for verification.
+// This is where I get the data for the logged-in office: the cart (with what the RIS preview
+// needs) and the office's full APP-CSE so they can check it.
 
 using AMS_Shopee.Data;
 using Microsoft.EntityFrameworkCore;
@@ -11,12 +11,21 @@ public sealed record PersonnelOption(uint Id, string FullName, string Position);
 public sealed record CartLineView(
     uint ItemId, string StockNo, string Name, string? Specifications, string Unit,
     string? CategoryIcon, string? ImagePath, decimal UnitPrice, int Quantity,
-    int StockOnHand, uint ReorderLevel, QuotaBalance? Balance)
+    int StockOnHand, uint ReorderLevel, QuotaBalance? Balance,
+    string? ColorOptions = null, string? ColorQty = null)
 {
     public StockLevel Level => RequisitionService.LevelOf(StockOnHand, ReorderLevel);
     public decimal LineTotal => UnitPrice * Quantity;
-    /// Same wording SubmitAsync stores on the RIS line.
-    public string Description => string.IsNullOrWhiteSpace(Specifications) ? Name : $"{Name}, {Specifications}";
+    /// Same text SubmitAsync saves on the RIS line (with the colors, if any).
+    public string Description => RequisitionService.DescribeLine(Name, Specifications, ColorQty, Quantity);
+
+    /// The colors the item comes in, and how many of each are in the cart.
+    public IReadOnlyList<AMS_Shopee.Services.Catalog.ItemColor> Options => AMS_Shopee.Services.Catalog.ItemColors.Parse(ColorOptions);
+    public IReadOnlyList<(string Name, int Qty)> Colors => AMS_Shopee.Services.Catalog.ItemColors.ParseQty(ColorQty);
+    public bool HasColors => Options.Count > 0 || Colors.Count > 0;
+    /// Units added before the item had colors.
+    public int AnyColorQty => Math.Max(0, Quantity - Colors.Sum(c => c.Qty));
+    public string HexOf(string color) => Options.FirstOrDefault(o => o.Name.Equals(color, StringComparison.OrdinalIgnoreCase))?.Hex ?? "#9ca3af";
 }
 
 public sealed record CartView(
@@ -65,6 +74,7 @@ public sealed class OfficeQueries(IDbContextFactory<AmsDbContext> dbFactory, Req
                 c.ItemId, c.Item.StockNo, c.Item.ItemName, c.Item.Specifications, c.Item.UnitOfMeasure,
                 Icon = c.Item.Category != null ? c.Item.Category.Icon : null,
                 c.Item.ImagePath, c.Item.UnitPrice, c.Quantity, c.Item.StockOnHand, c.Item.ReorderLevel,
+                c.Item.ColorOptions, c.Colors,
             })
             .ToListAsync(ct);
 
@@ -92,7 +102,7 @@ public sealed class OfficeQueries(IDbContextFactory<AmsDbContext> dbFactory, Req
             lines.Select(l => new CartLineView(
                 l.ItemId, l.StockNo, l.ItemName, l.Specifications, l.UnitOfMeasure, l.Icon, l.ImagePath,
                 l.UnitPrice, (int)l.Quantity, l.StockOnHand, l.ReorderLevel,
-                balances.GetValueOrDefault(l.ItemId))).ToList(),
+                balances.GetValueOrDefault(l.ItemId), l.ColorOptions, l.Colors)).ToList(),
             personnel,
             approvedBy);
     }
@@ -103,10 +113,13 @@ public sealed class OfficeQueries(IDbContextFactory<AmsDbContext> dbFactory, Req
         var officeId = u.OfficeId!.Value;
 
         await using var db = await dbFactory.CreateDbContextAsync(ct);
-        var office = await db.Offices.AsNoTracking().FirstAsync(o => o.OfficeId == officeId, ct);
+        // A unit that shares its division's APP-CSE (like LRPO under ESSD) sees the division's.
+        var scope = await AppCseScope.ForAsync(db, officeId, ct);
+        var sharing = scope.SharingOfficeIds.ToList();
+        var office = await db.Offices.AsNoTracking().FirstAsync(o => o.OfficeId == scope.BudgetOfficeId, ct);
 
         var years = await db.AppCseAllocations.AsNoTracking()
-            .Where(a => a.OfficeId == officeId)
+            .Where(a => a.OfficeId == scope.BudgetOfficeId)
             .Select(a => a.FiscalYear).Distinct()
             .OrderByDescending(y => y)
             .ToListAsync(ct);
@@ -117,13 +130,13 @@ public sealed class OfficeQueries(IDbContextFactory<AmsDbContext> dbFactory, Req
                : years.Count > 0 ? years[0] : current;
 
         var pending = await db.RisItems
-            .Where(i => i.Ris.OfficeId == officeId && i.Ris.FiscalYear == fy && i.Ris.Status == "PendingApproval")
+            .Where(i => sharing.Contains(i.Ris.OfficeId) && i.Ris.FiscalYear == fy && i.Ris.Status == "PendingApproval")
             .GroupBy(i => i.ItemId)
             .Select(g => new { ItemId = g.Key, Qty = g.Sum(i => (long)i.RequestedQty) })
             .ToDictionaryAsync(x => x.ItemId, x => x.Qty, ct);
 
         var rows = await db.AppCseAllocations.AsNoTracking()
-            .Where(a => a.OfficeId == officeId && a.FiscalYear == fy)
+            .Where(a => a.OfficeId == scope.BudgetOfficeId && a.FiscalYear == fy)
             .OrderBy(a => a.Item.Category == null ? 999 : a.Item.Category.SortOrder)
             .ThenBy(a => a.Item.ItemName)
             .Select(a => new

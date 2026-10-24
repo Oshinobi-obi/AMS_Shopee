@@ -1,5 +1,5 @@
-// CartState.cs — keeps the cart badge in the top bar in sync with the database.
-// Call RefreshAsync() after anything changes the cart; subscribers re-render.
+// This keeps the cart badge in the top bar the same as the database.
+// Call RefreshAsync() after anything changes the cart, and the subscribers redraw.
 
 using AMS_Shopee.Services.Requisition;
 using Microsoft.AspNetCore.Components.Authorization;

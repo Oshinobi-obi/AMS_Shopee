@@ -1,42 +1,51 @@
-@* Notices from AMS (posted in StockWatch → Announcements), shown under the top bar.
-   Closing one hides it on this computer only; a new or edited notice shows again. *@
+@* This is the announcement bar under the top bar. AMS posts these in e-PINS > Announcements.
+   They can't be closed by the user. A notice stays until its end date, or until AMS ends it
+   or turns it off. I show up to 3 at a time, the most important first. *@
 @inject LiveRefresh Live
 @implements IDisposable
 @inject AnnouncementService Announcements
 @inject IJSRuntime JS
 
-@if (Visible.Count > 0)
+@if (_items.Count > 0)
 {
-    <div class="ann-bar-stack" role="region" aria-label="Announcements from AMS">
-        @foreach (var a in Visible)
-        {
-            <div class="@($"ann-bar ann-{a.Level}")" @key="a.Id">
-                <div class="container-xl ann-bar-inner">
-                    <i class="bi @Icon(a.Level)" aria-hidden="true"></i>
-                    <div class="ann-bar-text">
-                        <strong>@a.Title</strong>
-                        <span>@a.Message</span>
+    <section class="ann-stack" aria-label="Announcements from AMS">
+        <div class="container-xl ann-list">
+            @foreach (var a in _items)
+            {
+                <article class="@($"ann ann-{a.Level}")" @key="a.Id" aria-labelledby="@($"ann-t-{a.Id}")">
+                    <div class="ann-badge" aria-hidden="true"><i class="bi @Icon(a.Level)"></i></div>
+                    <div class="ann-body">
+                        <div class="ann-meta">
+                            <span class="ann-level">@Label(a.Level)</span>
+                            <span class="ann-from"><i class="bi bi-megaphone" aria-hidden="true"></i>From the Asset Management Section</span>
+                        </div>
+                        <h2 class="ann-title" id="@($"ann-t-{a.Id}")">@a.Title</h2>
+                        @if (!string.IsNullOrWhiteSpace(a.Message))
+                        {
+                            <p class="ann-message">@a.Message</p>
+                        }
                     </div>
-                    <button type="button" class="ann-close" aria-label="@($"Close the announcement {a.Title}")" @onclick="() => DismissAsync(a)">
-                        <i class="bi bi-x-lg" aria-hidden="true"></i>
-                    </button>
-                </div>
-            </div>
-        }
-    </div>
+                    <dl class="ann-when">
+                        <div><dt>Posted</dt><dd><time datetime="@a.StartsAt.ToString("yyyy-MM-ddTHH:mm")">@When(a.StartsAt)</time></dd></div>
+                        @if (a.EndsAt is { } end)
+                        {
+                            <div><dt>Until</dt><dd><time datetime="@end.ToString("yyyy-MM-ddTHH:mm")">@When(end)</time></dd></div>
+                        }
+                    </dl>
+                </article>
+            }
+        </div>
+    </section>
 }
 
 @code {
     private const string Sound = "sounds/Shopee_Announcement.mp3";
     private List<LiveAnnouncement> _items = [];
-    private HashSet<string> _dismissed = [];
-    private readonly HashSet<string> _known = [];   // announcements this screen has already shown
+    private readonly HashSet<string> _known = [];   // announcements this screen already showed
     private bool _ready;
 
-    private List<LiveAnnouncement> Visible => _ready ? _items.Where(a => !_dismissed.Contains(Key(a))).ToList() : [];
-
-    // An edited notice gets a new key, so it shows again even if an older version was closed.
-    // (A fixed FNV-1a hash: string.GetHashCode() changes every time the site restarts.)
+    // When a notice is edited it gets a new key, so the sound plays again for the new text.
+    // I used a fixed FNV-1a hash because string.GetHashCode() changes every time the site restarts.
     private static string Key(LiveAnnouncement a)
     {
         uint h = 2166136261;
@@ -48,38 +57,51 @@
     {
         "urgent" => "bi-exclamation-octagon-fill",
         "warning" => "bi-exclamation-triangle-fill",
-        _ => "bi-megaphone-fill",
+        _ => "bi-info-circle-fill",
     };
+
+    private static string Label(string level) => level switch
+    {
+        "urgent" => "Urgent",
+        "warning" => "Important",
+        _ => "Information",
+    };
+
+    // Shows "Today, 9:00 AM", "Tomorrow, 5:00 PM", "Oct 15, 5:00 PM" or "Jan 5, 2027, 8:00 AM" (PH time).
+    private static string When(DateTime t)
+    {
+        var today = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, AMS_Shopee.Services.PhZone.Manila).Date;
+        var time = t.ToString("h:mm tt");
+        if (t.Date == today) return $"Today, {time}";
+        if (t.Date == today.AddDays(1)) return $"Tomorrow, {time}";
+        if (t.Date == today.AddDays(-1)) return $"Yesterday, {time}";
+        return t.Year == today.Year ? $"{t:MMM d}, {time}" : $"{t:MMM d, yyyy}, {time}";
+    }
 
     protected override async Task OnInitializedAsync() => _items = await Announcements.LiveAsync();
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        try
-        {
-            _dismissed = (await JS.InvokeAsync<string[]>("amsUi.dismissedAnnouncements")).ToHashSet();
-            await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { Sound });
-        }
+        try { await JS.InvokeVoidAsync("amsLive.preload", (object)new[] { Sound }); }
         catch (JSDisconnectedException) { }
-        // What is already showing when the page opens stays silent.
+        // Notices already showing when the page opens don't play a sound.
         foreach (var a in _items) _known.Add(Key(a));
         _ready = true;
-        StateHasChanged();
         _ = KeepFreshAsync(_cts.Token);
     }
 
-    // Shows the latest announcements; plays the sound once for each one this screen hasn't
-    // shown before (a new notice, or an edited one), unless the office closed it earlier.
+    // This loads the latest announcements. It plays the sound once for each notice this screen
+    // hasn't shown yet (a new one or an edited one).
     private async Task ApplyAsync(List<LiveAnnouncement> items)
     {
         _items = items;
-        var fresh = items.Where(a => !_known.Contains(Key(a)) && !_dismissed.Contains(Key(a))).ToList();
+        var fresh = items.Where(a => !_known.Contains(Key(a))).ToList();
         foreach (var a in items) _known.Add(Key(a));
         StateHasChanged();
         if (!_ready || fresh.Count == 0) return;
 
-        var top = fresh[0];   // most important first (urgent, then important, then information)
+        var top = fresh[0];   // most important first: urgent, then important, then information
         try
         {
             await JS.InvokeVoidAsync("amsLive.notify",
@@ -89,7 +111,8 @@
         catch (JSDisconnectedException) { }
     }
 
-    // Safety net: re-check every 30 seconds on its own, even if the live watcher ever stops.
+    // Backup check every 30 seconds in case the live updates stop.
+    // This also removes a notice on its own once its "Until" time passes.
     private readonly CancellationTokenSource _cts = new();
 
     private async Task KeepFreshAsync(CancellationToken ct)
@@ -107,20 +130,15 @@
         catch (ObjectDisposedException) { }
     }
 
-    private async Task DismissAsync(LiveAnnouncement a)
-    {
-        _dismissed.Add(Key(a));
-        try { await JS.InvokeVoidAsync("amsUi.dismissAnnouncement", Key(a)); } catch (JSDisconnectedException) { }
-    }
-
-    // Live: when announcements change on either website, reload without a refresh.
+    // Live update: when announcements change on either website, reload them without refreshing the page.
     private static readonly string[] LiveAreas = ["announcements"];
     protected override void OnInitialized() => Live.AreasChanged += OnAreasAsync;
 
     private async Task OnAreasAsync(IReadOnlySet<string> areas)
     {
         if (!areas.Overlaps(LiveAreas)) return;
-        await ApplyAsync(await Announcements.LiveAsync());
+        var items = await Announcements.LiveAsync();
+        await InvokeAsync(() => ApplyAsync(items));
     }
 
     public void Dispose()

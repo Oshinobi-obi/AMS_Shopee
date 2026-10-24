@@ -4,9 +4,10 @@
 @inject LiveRefresh Live
 @implements IDisposable
 
-<PageTitle>My requisitions | AMS</PageTitle>
+<PageTitle>My requisitions | e-SRS</PageTitle>
 
 <section class="page-head">
+    <SeasonDecor />
     <div class="container-xl">
         <h1>My requisitions</h1>
         <p>Every Requisition and Issue Slip your office has submitted, and where each one is now.</p>
@@ -17,7 +18,7 @@
 <div class="container-xl page-body">
     @if (_loading)
     {
-        <p class="text-secondary py-5 text-center">Loading your requisitions…</p>
+        <LoadingSkeleton Kind="list" Rows="4" Label="Loading your requisitions…" />
     }
     else if (_user is null)
     {
@@ -33,7 +34,7 @@
         <div class="empty-state">
             <i class="bi bi-shield-lock" aria-hidden="true"></i>
             <h2>This page is for office accounts</h2>
-            <p>AMS reviews requisitions in AMS StockWatch.</p>
+            <p>AMS reviews requisitions in e-PINS.</p>
         </div>
     }
     else if (_rows.Count == 0)
@@ -114,7 +115,7 @@
         Live.Changed += OnLiveAsync;
     }
 
-    // Status changes made by AMS show up without reloading the page.
+    // Status changes from AMS show up without reloading the page.
     private async Task OnLiveAsync(IReadOnlyList<RisEvent> events)
     {
         if (_user?.IsOffice != true || !events.Any(e => e.OfficeId == _user.OfficeId)) return;

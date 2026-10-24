@@ -1,0 +1,143 @@
+/* This is where I put the small animations of e-SRS.
+   Everything that moves is inside "no-preference", so people who turned on
+   "Reduce motion" / "Show animations: off" in Windows or on their phone get none.
+   Nothing here blocks a click, and nothing moves on printed forms. */
+
+/* Loading placeholders (always shown, only the shimmer moves) */
+.skel {
+    display: block; height: .875rem; border-radius: 6px; margin: .4rem 0;
+    background: #e7ebf0;
+}
+.skel-lg { height: 1.125rem; }
+.skel-block { height: 22rem; margin-top: 1rem; border-radius: 8px; }
+.skel-dot { width: 28px; height: 28px; border-radius: 50%; flex: none; margin: 0; }
+.skel-step { display: flex; align-items: center; gap: .875rem; margin: 1rem 0; }
+.skel-step .skel { margin: 0; }
+.skel-panel { padding: 1.125rem; }
+.skel-row { pointer-events: none; }
+.skel-trow { display: flex; gap: 1rem; padding: .625rem 0; border-bottom: 1px solid var(--line); }
+.skel-trow:last-child { border-bottom: 0; }
+.skel-trow .skel { margin: 0; }
+.w-10 { width: 10%; } .w-15 { width: 15%; } .w-25 { width: 25%; } .w-30 { width: 30%; } .w-35 { width: 35%; }
+.w-40 { width: 40%; } .w-50 { width: 50%; } .w-60 { width: 60%; } .w-70 { width: 70%; } .w-90 { width: 90%; }
+html[data-theme="dark"] .skel { background: #1f2540; }
+
+/* The picture that flies to the cart (made by motion.js) */
+.fly-item {
+    position: fixed; z-index: 3000; width: 72px; height: 72px; border-radius: 16px; overflow: hidden;
+    display: grid; place-items: center; pointer-events: none;
+    background: var(--brand-tint); color: var(--brand); font-size: 1.75rem;
+    box-shadow: 0 10px 30px rgb(0 0 60 / .35); border: 3px solid var(--gold, #ffb700);
+}
+.fly-item img { width: 100%; height: 100%; object-fit: cover; }
+
+/* "Submitted" check mark (made by motion.js) */
+.done-burst {
+    position: fixed; inset: 0; z-index: 3000; display: grid; place-items: center; pointer-events: none;
+    background: rgb(0 0 40 / .18);
+}
+.done-card {
+    display: grid; justify-items: center; gap: .75rem; padding: 1.75rem 2.5rem; border-radius: 20px;
+    background: var(--surface, #fff); color: var(--ink, #111); box-shadow: 0 20px 60px rgb(0 0 40 / .3);
+    font-weight: 700; font-size: 1.125rem;
+}
+.done-card svg { width: 84px; height: 84px; }
+.done-card circle { fill: none; stroke: var(--ok, #1e7a46); stroke-width: 4; }
+.done-card path { fill: none; stroke: var(--ok, #1e7a46); stroke-width: 6; stroke-linecap: round; stroke-linejoin: round; }
+
+@media (prefers-reduced-motion: no-preference) {
+
+    /* Shimmer on loading placeholders */
+    .skel, .item-card.is-skeleton .item-media, .item-card.is-skeleton .item-body span {
+        background-image: linear-gradient(90deg, transparent 0, rgb(255 255 255 / .55) 50%, transparent 100%);
+        background-size: 200% 100%; background-repeat: no-repeat;
+        animation: skel-shine 1.3s ease-in-out infinite;
+    }
+    html[data-theme="dark"] .skel, html[data-theme="dark"] .item-card.is-skeleton .item-media,
+    html[data-theme="dark"] .item-card.is-skeleton .item-body span {
+        background-image: linear-gradient(90deg, transparent 0, rgb(255 255 255 / .07) 50%, transparent 100%);
+    }
+
+    /* Page content fades in on every page */
+    .page-body { animation: fade-up .32s ease-out backwards; }
+
+    /* Catalog cards come in one after another, and lift and tilt a little under the mouse */
+    .item-card:not(.is-skeleton) {
+        animation: fade-up .38s ease-out backwards; animation-delay: calc(var(--i, 0) * 35ms);
+        transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+        will-change: transform;
+    }
+    @media (hover: hover) and (pointer: fine) {
+        .item-card:not(.is-skeleton):hover {
+            transform: perspective(900px) translateY(-5px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+            box-shadow: 0 14px 30px rgb(0 0 60 / .14), 0 2px 6px rgb(0 0 60 / .08);
+        }
+        .item-card:hover .item-media img, .item-card:hover .item-media > .bi { transform: scale(1.05); }
+        .item-media img, .item-media > .bi { transition: transform .35s ease; }
+        .req-row { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+        .req-row:not(.skel-row):hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgb(0 0 60 / .1); }
+        .req-row:hover .req-go { transform: translateX(4px); }
+        .req-go { transition: transform .15s ease; }
+    }
+    .req-list > .req-row { animation: fade-up .3s ease-out backwards; }
+    .req-list > .req-row:nth-child(2) { animation-delay: 40ms; }
+    .req-list > .req-row:nth-child(3) { animation-delay: 80ms; }
+    .req-list > .req-row:nth-child(4) { animation-delay: 120ms; }
+    .req-list > .req-row:nth-child(n+5) { animation-delay: 160ms; }
+
+    /* Buttons press in a little */
+    .btn:not(:disabled):active, .chip:active { transform: scale(.97); }
+    .btn, .chip { transition: transform .08s ease, background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease; }
+
+    /* APP-CSE bars grow to their value */
+    .quota-bar span { transform-origin: left center; animation: bar-grow .8s cubic-bezier(.2, .8, .2, 1) backwards; animation-delay: .15s; }
+
+    /* Cart badge pops when items are added */
+    .cart-count.is-bump { animation: badge-pop .5s cubic-bezier(.3, 1.6, .5, 1); }
+    .topbar-link.is-catch .bi-cart3 { animation: cart-catch .45s ease; }
+
+    /* Requisition timeline fills step by step */
+    .steps li { animation: fade-up .35s ease-out backwards; }
+    .steps li:nth-child(2) { animation-delay: .18s; }
+    .steps li:nth-child(3) { animation-delay: .36s; }
+    .steps li:nth-child(4) { animation-delay: .54s; }
+    .steps li.is-done:not(:last-child)::before { transform-origin: top; animation: line-fill .4s ease-out backwards; }
+    .steps li:nth-child(1).is-done::before { animation-delay: .25s; }
+    .steps li:nth-child(2).is-done::before { animation-delay: .43s; }
+    .steps li:nth-child(3).is-done::before { animation-delay: .61s; }
+    .steps li.is-done .step-dot { animation: dot-pop .45s cubic-bezier(.3, 1.6, .5, 1) backwards; }
+    .steps li:nth-child(2).is-done .step-dot { animation-delay: .18s; }
+    .steps li:nth-child(3).is-done .step-dot { animation-delay: .36s; }
+    .steps li:nth-child(4).is-done .step-dot { animation-delay: .54s; }
+    .steps li.is-current .step-dot { animation: step-glow 2s ease-in-out infinite; }
+
+    /* Status pill fades in to its color */
+    .status-pill { animation: pill-in .4s ease-out backwards; }
+
+    /* The "Submitted" check mark */
+    .done-burst { animation: burst-bg 1.6s ease both; }
+    .done-card { animation: card-pop 1.6s cubic-bezier(.3, 1.4, .5, 1) both; }
+    .done-card circle { stroke-dasharray: 240; stroke-dashoffset: 240; animation: draw .5s ease-out .1s forwards; }
+    .done-card path { stroke-dasharray: 60; stroke-dashoffset: 60; animation: draw .35s ease-out .5s forwards; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .done-burst { animation: burst-fade 1.4s linear both; }
+}
+
+@keyframes skel-shine { from { background-position: 150% 0; } to { background-position: -50% 0; } }
+@keyframes fade-up { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes badge-pop { 0% { transform: scale(1); } 35% { transform: scale(1.55); } 100% { transform: scale(1); } }
+@keyframes cart-catch { 0%, 100% { transform: none; } 40% { transform: translateY(2px) rotate(-10deg); } 70% { transform: rotate(6deg); } }
+@keyframes line-fill { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes dot-pop { 0% { transform: scale(.4); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+@keyframes step-glow { 0%, 100% { box-shadow: 0 0 0 4px rgb(253 181 21 / .25); } 50% { box-shadow: 0 0 0 9px rgb(253 181 21 / .08); } }
+@keyframes pill-in { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: none; } }
+@keyframes draw { to { stroke-dashoffset: 0; } }
+@keyframes burst-bg { 0% { opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes card-pop { 0% { transform: scale(.7); opacity: 0; } 15% { transform: scale(1); opacity: 1; } 80% { transform: scale(1); opacity: 1; } 100% { transform: scale(.95); opacity: 0; } }
+@keyframes burst-fade { 0% { opacity: 0; } 10%, 85% { opacity: 1; } 100% { opacity: 0; } }
+
+@media print { .fly-item, .done-burst { display: none !important; } }

@@ -1,10 +1,10 @@
--- =====================================================================
--- ams_stockwatch :: 007 — PROPERTY REGISTER
--- One row per property (or per lot of identical semi-expendable items),
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 007: PROPERTY REGISTER
+-- One row per property (or per lot of the same semi-expendable items),
 -- with its status, classification, cost and who is accountable for it.
--- Feeds the property charts on the AMS StockWatch dashboard.
--- Safe to run again. On MonsterASP, run it inside db64557 (no USE line).
--- =====================================================================
+-- The property charts on the e-PINS dashboard use this.
+-- Safe to run again. On MonsterASP run it inside db64557 (no USE line).
+-- -------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS property_items (
   property_id      INT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS property_items (
   unit_cost        DECIMAL(14,2) NOT NULL DEFAULT 0.00,
   acquired_on      DATE          NULL,
   office_id        INT UNSIGNED  NULL,
-  personnel_id     INT UNSIGNED  NULL,                     -- accountable person; NULL = unassigned
+  personnel_id     INT UNSIGNED  NULL,                     -- accountable person, NULL means not assigned
   status           VARCHAR(30)   NOT NULL DEFAULT 'Serviceable',
-  document_id      INT UNSIGNED  NULL,                     -- the PAR / ICS it is recorded on (optional)
+  document_id      INT UNSIGNED  NULL,                     -- the PAR / ICS it's recorded on (optional)
   remarks          VARCHAR(500)  NULL,
   created_by       INT UNSIGNED  NULL,
   created_at       DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,

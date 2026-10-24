@@ -1,12 +1,12 @@
--- =====================================================================
--- ams_stockwatch :: 005 — signed RIS copies + default "Issued by"
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 005: signed RIS copies and the default "Issued by"
 -- Run once in MySQL Workbench. Safe to run again.
--- =====================================================================
+-- -------------------------------------------------------------------
 
 USE ams_stockwatch;
 
--- The wet-signed RIS, scanned to PDF by AMS when the items are issued.
--- Stored in the database so both websites can show it and backups include it.
+-- This is the RIS with the real signatures, scanned to PDF by AMS when the items are issued.
+-- I save it in the database so both websites can show it and the backups include it.
 CREATE TABLE IF NOT EXISTS ris_signed_copies (
   ris_id             INT UNSIGNED NOT NULL PRIMARY KEY,
   original_file_name VARCHAR(255) NOT NULL,
@@ -20,10 +20,10 @@ CREATE TABLE IF NOT EXISTS ris_signed_copies (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Default "Issued by" printed on every slip (the AMS supply officer).
--- Placeholder until you choose the person; see the example below.
+-- It's a placeholder until the person is chosen, see the example below.
 INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('ris.issued_by_personnel_id', '');
 
--- To set it, find the person's id in ro_personnel and run, for example:
+-- To set it, look up the person's id in ro_personnel and run something like:
 --   UPDATE system_settings SET setting_value = '9' WHERE setting_key = 'ris.issued_by_personnel_id';
 
 INSERT IGNORE INTO schema_migrations (version) VALUES ('005_signed_copies');

@@ -1,13 +1,13 @@
--- =====================================================================
--- ams_stockwatch :: 010 — PERISHABLE SUPPLIES (MFD / EXP)
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 010: PERISHABLE SUPPLIES (MFD / EXP)
 -- Some supplies expire (printer ink, toner, correction fluid, glue...).
--- Adds to supply_items:
---   is_perishable    1 = the item has an expiration date
+-- This adds to supply_items:
+--   is_perishable    1 means the item has an expiration date
 --   manufactured_on  MFD, optional (some packs don't show it)
---   expires_on       EXP, required by AMS StockWatch when is_perishable = 1
--- Run this BEFORE publishing the updated websites: both read these columns.
--- Safe to run again. On MonsterASP: run it inside db64557 (no USE line).
--- =====================================================================
+--   expires_on       EXP, required in e-PINS when is_perishable = 1
+-- Run this BEFORE publishing the updated websites, because both read these columns.
+-- Safe to run again. On MonsterASP run it inside db64557 (no USE line).
+-- -------------------------------------------------------------------
 
 SET @has_col := (SELECT COUNT(*) FROM information_schema.COLUMNS
                   WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'supply_items' AND COLUMN_NAME = 'is_perishable');

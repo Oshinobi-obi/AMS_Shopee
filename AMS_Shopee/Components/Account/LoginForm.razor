@@ -1,5 +1,5 @@
-@* Login modal content. A plain HTML form post (not an interactive handler),
-   because only a normal HTTP request can set the auth cookie. *@
+@* This is the login form inside the modal. I used a normal HTML form post here instead of
+   an interactive handler, because only a regular HTTP request can set the login cookie. *@
 
 <form autocomplete="off" method="post" action="/account/login" class="login-form">
     <AntiforgeryToken />

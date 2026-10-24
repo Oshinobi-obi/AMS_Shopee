@@ -1,8 +1,8 @@
--- =====================================================================
--- ams_stockwatch :: 006 — item photos (uploaded in AMS StockWatch,
--- shown on the AMS Supplies catalog). Safe to run again.
--- On MonsterASP: run it inside db64557 (no USE line needed).
--- =====================================================================
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 006: item photos (uploaded in e-PINS,
+-- shown in the e-SRS catalog). Safe to run again.
+-- On MonsterASP run it inside db64557 (no USE line needed).
+-- -------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS item_images (
   item_id      INT UNSIGNED NOT NULL PRIMARY KEY,
@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS item_images (
   CONSTRAINT chk_item_image_type CHECK (content_type IN ('image/jpeg','image/png','image/webp'))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Low-stock threshold used for new catalog items
+-- Low-stock level for new catalog items
 INSERT IGNORE INTO system_settings (setting_key, setting_value) VALUES ('stock.default_reorder', '10');
 
 INSERT IGNORE INTO schema_migrations (version) VALUES ('006_item_images');

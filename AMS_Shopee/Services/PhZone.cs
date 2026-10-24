@@ -1,7 +1,7 @@
 namespace AMS_Shopee.Services;
 
 /// Philippine time zone that works on any server. Some Windows hosts don't know
-/// the "Asia/Manila" name, so fall back to the Windows name, then to a fixed UTC+8.
+/// "Asia/Manila", so I try the Windows name next, then a fixed UTC+8.
 public static class PhZone
 {
     public static readonly TimeZoneInfo Manila = Find();

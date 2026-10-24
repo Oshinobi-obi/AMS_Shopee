@@ -1,13 +1,11 @@
-/* =====================================================================
-   AMS Supplies — global styles
-   Tokens first, then layout, catalog, cards, quota meter, modal content,
-   floating button and toasts. Bootstrap 5.3 is loaded before this file.
-   ===================================================================== */
+/* This is the main stylesheet of e-SRS.
+   Colors first, then the layout, catalog, cards, quota meter, modal content,
+   floating button and toasts. Bootstrap 5.3 loads before this file. */
 
 :root {
-    /* DepEd NCR palette (from the seal and the "One NCR, Stronger Together" mark) */
+    /* DepEd NCR colors (from the seal and the "One NCR, Stronger Together" logo) */
     --navy: #00007f;          /* seal background, wordmark */
-    --royal: #0b2fa8;         /* presentation background blue */
+    --royal: #0b2fa8;         /* blue from the presentation background */
     --gold: #fdb515;          /* titles and highlights */
     --orange: #f7941d;        /* swoosh accent */
     --seal-yellow: #ffdf00;   /* torch on the seal */
@@ -20,7 +18,7 @@
     --brand: var(--royal);
     --brand-deep: var(--navy);
     --brand-tint: #e9ecfa;
-    --price: #b45309;         /* deep amber: gold family, readable on white */
+    --price: #b45309;         /* darker gold so it's readable on white */
     --ok: #1e7a46;
     --ok-tint: #e3f3ea;
     --warn: #a15c07;
@@ -37,13 +35,13 @@
 
 body { background: var(--canvas); color: var(--ink); }
 
-/* No visible scrollbars anywhere (pages, forms, tables, modals).
+/* I hide the scrollbars everywhere (pages, forms, tables, modals).
    Scrolling still works with the mouse wheel, touchpad, touch and keyboard. */
 * { scrollbar-width: none; -ms-overflow-style: none; }
 *::-webkit-scrollbar { display: none; width: 0; height: 0; }
 h1:focus { outline: none; }
 
-/* Bootstrap primary button in the office's blue */
+/* Bootstrap primary button in the office blue */
 .btn-primary {
     --bs-btn-bg: var(--brand);
     --bs-btn-border-color: var(--brand);
@@ -55,7 +53,7 @@ h1:focus { outline: none; }
     --bs-btn-disabled-border-color: #9aa8ba;
     font-weight: 600;
 }
-/* Gold call-to-action used for "Add to cart" — the slide's title colour */
+/* Gold button for "Add to cart", same color as the slide titles */
 .btn-accent {
     --bs-btn-bg: var(--gold);
     --bs-btn-border-color: var(--gold);
@@ -87,7 +85,7 @@ h1:focus { outline: none; }
     box-shadow: 0 0 0 .2rem rgb(11 47 168 / .18);
 }
 
-/* ---------- Top bar: navy band with the logos on a white pill, like the slides ---------- */
+/* Top bar: navy with the logos on a white pill, like the slides */
 .topbar { background: var(--navy); color: #fff; border-bottom: 3px solid var(--gold); }
 .topbar-inner { display: flex; align-items: center; justify-content: space-between; gap: 1rem; min-height: 68px; }
 .brand { display: flex; align-items: center; gap: .875rem; color: #fff; text-decoration: none; min-width: 0; }
@@ -124,7 +122,7 @@ h1:focus { outline: none; }
 .topbar-btn-solid { background: var(--gold); color: var(--navy); font-weight: 700; padding-inline: 1.125rem; }
 .topbar-btn-solid:hover { background: #f5a800; color: var(--navy); }
 
-/* ---------- Catalog hero: royal blue with the gold/orange swoosh of the NCR slides ---------- */
+/* Catalog banner: royal blue with the gold and orange swoosh from the NCR slides */
 .catalog-hero {
     position: relative;
     overflow: hidden;
@@ -135,7 +133,7 @@ h1:focus { outline: none; }
     color: #fff;
     padding: 2.5rem 0 3.5rem;
 }
-/* Two layered arcs in the top-right corner, like the presentation background */
+/* Two arcs in the top right corner, like the presentation background */
 .catalog-hero::before,
 .catalog-hero::after {
     content: "";
@@ -182,7 +180,7 @@ h1:focus { outline: none; }
 }
 .catalog-search input:focus { outline: 3px solid var(--gold); outline-offset: 2px; }
 
-/* The category row overlaps the hero edge so the two read as one unit */
+/* The category row overlaps the bottom of the banner so they look connected */
 .catalog-body { position: relative; z-index: 1; margin-top: -1.5rem; padding-bottom: 6rem; }
 .chip-row {
     display: flex; gap: .5rem; overflow-x: auto; padding: .25rem .125rem .75rem;
@@ -212,7 +210,7 @@ h1:focus { outline: none; }
     .catalog-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .625rem; }
 }
 
-/* ---------- Item card ---------- */
+/* Item card */
 .item-card {
     display: flex; flex-direction: column;
     background: var(--surface);
@@ -233,7 +231,7 @@ h1:focus { outline: none; }
     background: var(--brand-tint); color: var(--brand);
 }
 .item-media > .bi { font-size: 2.75rem; opacity: .7; }
-/* The photo fills the fixed frame (taken out of the layout so a tall photo can't stretch the card) */
+/* The photo fills a fixed frame, so a tall photo can't stretch the card */
 .item-media img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .item-media .item-badge { z-index: 1; }
 .item-card.is-out .item-media { background: #eef0f3; color: #8a96a6; }
@@ -260,7 +258,7 @@ h1:focus { outline: none; }
 .item-card.is-skeleton .item-body span { display: block; height: .875rem; border-radius: 4px; background: #e7ebf0; margin: .25rem 0; }
 .item-card.is-skeleton .item-body span + span { width: 60%; }
 
-/* ---------- Stock badge ---------- */
+/* Stock badge */
 .stock-badge {
     display: inline-flex; align-items: center; gap: .3rem;
     padding: .2rem .55rem; border-radius: 999px;
@@ -271,7 +269,7 @@ h1:focus { outline: none; }
 .stock-lowstock   { background: var(--warn-tint); color: var(--warn); border-color: rgb(161 92 7 / .3); }
 .stock-outofstock { background: var(--bad-tint);  color: var(--bad);  border-color: rgb(180 35 24 / .25); }
 
-/* ---------- APP-CSE quota meter ---------- */
+/* APP-CSE quota meter */
 .quota {
     border: 1px solid var(--line); border-radius: 10px;
     padding: .625rem .75rem; background: #fbfcfd;
@@ -303,7 +301,7 @@ h1:focus { outline: none; }
     .item-supplier { display: none; }
 }
 
-/* ---------- Item detail (inside the modal) ---------- */
+/* Item details (inside the modal) */
 .detail { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 1.5rem; }
 @media (max-width: 767.98px) { .detail { grid-template-columns: 1fr; } }
 .detail-media {
@@ -312,7 +310,7 @@ h1:focus { outline: none; }
     background: var(--brand-tint); color: var(--brand);
 }
 .detail-media > .bi { font-size: 4.5rem; opacity: .7; }
-/* In the item details the whole photo is shown (not cropped); click it to see it full screen */
+/* In the item details I show the whole photo (not cropped). Click it to see it full screen */
 .detail-media.has-photo { background: #fff; border: 1px solid var(--line); }
 .detail-photo {
     position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: zoom-in;
@@ -326,7 +324,7 @@ h1:focus { outline: none; }
 }
 .detail-media .item-badge { z-index: 1; }
 
-/* Full-screen photo viewer */
+/* Full screen photo viewer */
 .photo-viewer {
     position: fixed; inset: 0; z-index: 2000; display: grid; place-items: center; padding: 1.5rem;
     background: rgb(0 0 20 / .88); cursor: zoom-out; animation: photo-in .18s ease-out;
@@ -364,7 +362,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 .qty-stepper input::-webkit-outer-spin-button,
 .qty-stepper input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 
-/* ---------- Login modal ---------- */
+/* Login modal */
 .password-group { display: flex; gap: .5rem; }
 .password-group .form-control { flex: 1; }
 .btn-eye {
@@ -375,7 +373,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 .btn-eye:focus-visible { outline: 3px solid rgb(11 47 168 / .35); outline-offset: 2px; }
 .login-seal { display: block; width: 72px; height: 72px; margin: 0 auto 1rem; }
 
-/* ---------- Empty and error states ---------- */
+/* Empty and error messages */
 .empty-state {
     text-align: center; padding: 3.5rem 1rem; background: var(--surface);
     border: 1px dashed var(--line); border-radius: var(--radius);
@@ -384,7 +382,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 .empty-state h2 { font-size: 1.25rem; margin: .75rem 0 .375rem; }
 .empty-state p { color: var(--muted); max-width: 46ch; margin: 0 auto 1rem; }
 
-/* ---------- Floating "Suggest a supply" button ---------- */
+/* Floating "Suggest a supply" button */
 .suggest-fab {
     position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 1030;
     display: inline-flex; align-items: center; gap: .5rem;
@@ -404,7 +402,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
     .suggest-fab-short { display: inline; }
 }
 
-/* ---------- Toasts ---------- */
+/* Toasts */
 .toast-stack {
     position: fixed; left: 50%; bottom: 5rem; transform: translateX(-50%);
     z-index: 1100; display: flex; flex-direction: column; gap: .5rem;
@@ -425,7 +423,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } }
 @media (prefers-reduced-motion: reduce) { .toast-pill { animation: none; } }
 
-/* ---------- Inner pages: compact navy header ---------- */
+/* Inner pages: smaller navy header */
 .page-head {
     background: linear-gradient(160deg, var(--royal), var(--navy));
     color: #fff; padding: 1.75rem 0 2.75rem;
@@ -446,7 +444,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 .panel-head span { color: var(--muted); font-size: .875rem; }
 .panel-body { padding: 1.125rem; }
 
-/* ---------- Cart + RIS split view ---------- */
+/* Cart and RIS side by side */
 .view-switch {
     display: flex; padding: 4px; margin-bottom: 1rem; gap: 4px;
     background: var(--surface); border: 1px solid var(--line); border-radius: 999px;
@@ -506,7 +504,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 .slip-sticky .ris-scroll { border-radius: 0; }
 .slip-head h2 { font-size: 1.0625rem; font-weight: 700; margin: 0; }
 .slip-head span { font-size: .8125rem; color: var(--muted); }
-/* Fit the true-A4 slip inside the right column instead of scrolling sideways */
+/* Shrink the real A4 slip to fit the right column instead of scrolling sideways */
 @media (min-width: 992px)  { .slip-column .ris-sheet { zoom: .68; } }
 @media (min-width: 1200px) { .slip-column .ris-sheet { zoom: .8; } }
 @media (min-width: 1400px) { .slip-column .ris-sheet { zoom: .9; } }
@@ -520,9 +518,9 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 .submit-total { display: flex; justify-content: space-between; margin: .75rem 0 0; }
 .submit-total strong { color: var(--price); }
 
-/* ---------- Personnel picker (custom dropdown, same width as its field) ---------- */
+/* Personnel picker (my own dropdown, same width as its field) */
 .picker { position: relative; }
-.panel:has(.picker) { overflow: visible; }   /* let the list drop below the panel edge */
+.panel:has(.picker) { overflow: visible; }   /* let the list go past the bottom of the panel */
 .picker-toggle {
     text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     background-color: var(--surface);
@@ -550,13 +548,13 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
     content: "\F26E"; font-family: "bootstrap-icons"; margin-left: .375rem; color: var(--brand);
 }
 
-/* ---------- My APP-CSE ---------- */
+/* My APP-CSE */
 .appcse-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-bottom: 1rem; }
 .appcse-search { position: relative; flex: 1 1 260px; max-width: 420px; }
 .appcse-search .bi { position: absolute; left: .875rem; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .appcse-search input { padding-left: 2.25rem; background: var(--surface); border: 1px solid var(--line); }
-/* "Fiscal year" + picker share one white box (like the search box), so the label stays
-   readable even where the toolbar overlaps the blue banner */
+/* "Fiscal year" and the picker are in one white box (like the search box), so the label
+   is still readable where the toolbar overlaps the blue banner */
 .appcse-year {
     display: flex; align-items: center; gap: .25rem; margin: 0;
     padding: 0 .25rem 0 .875rem; min-height: 38px;
@@ -588,7 +586,7 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 }
 .appcse-help > .bi { color: var(--warn); font-size: 1.25rem; }
 
-/* ---------- Notification permission prompt ---------- */
+/* Notification permission prompt */
 .notify-prompt { background: var(--royal); color: #fff; font-size: .9rem; border-bottom: 1px solid rgb(255 255 255 / .15); }
 .notify-prompt-inner { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .875rem; padding-top: .55rem; padding-bottom: .55rem; }
 .notify-prompt-inner > .bi { color: var(--gold); font-size: 1.1rem; }
@@ -599,34 +597,84 @@ html[data-theme="dark"] .detail-media.has-photo { background: #fff; }
 /* Signed RIS viewer */
 .pdf-frame { display: block; width: 100%; height: min(80vh, 1100px); border: 0; background: #525659; }
 
-/* ---------- Announcement banner ---------- */
-.ann-bar { border-bottom: 1px solid rgb(0 0 0 / .08); animation: ann-in .35s ease-out; }
+/* Announcement banner
+   Cards under the top bar on every page. They can't be closed, a notice stays until AMS
+   ends it. Each level sets its color (--ann-c), the text color on it (--ann-on),
+   the card tint and the title color. */
+/* The band uses the system blue, going from the navy top bar into the royal blue page header. */
+.ann-stack { background: linear-gradient(180deg, var(--navy) 0%, var(--royal) 100%); }
+.ann-list { display: grid; gap: .6rem; padding-top: .9rem; padding-bottom: .9rem; }
+.ann {
+    --ann-c: #0b2fa8; --ann-on: #fff; --ann-tint: #eef1fd; --ann-ink: #13206b;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: .25rem 1rem; align-items: start;
+    padding: .85rem 1.1rem .85rem .95rem; border-radius: var(--radius);
+    background: var(--ann-tint);
+    border: 1px solid color-mix(in srgb, var(--ann-c) 22%, transparent);
+    border-left: 5px solid var(--ann-stripe, var(--ann-c));
+    box-shadow: 0 1px 2px rgb(20 26 58 / .06), 0 4px 14px -8px color-mix(in srgb, var(--ann-c) 45%, transparent);
+    animation: ann-in .35s ease-out;
+}
 @keyframes ann-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
-@media (prefers-reduced-motion: reduce) { .ann-bar { animation: none; } }
-.ann-bar-inner { display: flex; align-items: flex-start; gap: .75rem; padding-top: .7rem; padding-bottom: .7rem; }
-.ann-bar-inner > .bi { font-size: 1.15rem; margin-top: .1rem; flex: none; }
-.ann-bar-text { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.ann-bar-text strong { margin-right: .4rem; }
-.ann-close { flex: none; border: 0; background: none; padding: .15rem .35rem; border-radius: 6px; color: inherit; opacity: .7; }
-.ann-close:hover { opacity: 1; background: rgb(0 0 0 / .06); }
-.ann-info    { background: #e9ecfa; color: #13206b; }
-.ann-info    .bi-megaphone-fill { color: var(--brand); }
-.ann-warning { background: #fff4d6; color: #5c3b00; }
-.ann-warning .bi { color: #b07800; }
-.ann-urgent  { background: #fde8e6; color: #7a1610; }
-.ann-urgent  .bi { color: var(--bad); }
-html[data-theme="dark"] .ann-info    { background: #1d2650; color: #dfe4ff; }
-html[data-theme="dark"] .ann-warning { background: #33280e; color: #f7d98b; }
-html[data-theme="dark"] .ann-urgent  { background: #3a1715; color: #ffc9c4; }
-html[data-theme="dark"] .ann-close:hover { background: rgb(255 255 255 / .08); }
-@media print { .ann-bar-stack { display: none; } }
+.ann-info    { --ann-stripe: var(--gold); }
+.ann-warning { --ann-c: #9a5a00; --ann-tint: #fff6e0; --ann-ink: #5c3b00; }
+.ann-urgent  { --ann-c: #b42318; --ann-tint: #fdecea; --ann-ink: #7a1610; }
+
+.ann-badge {
+    width: 2.6rem; height: 2.6rem; border-radius: 50%; display: grid; place-items: center;
+    background: var(--ann-c); color: var(--ann-on); font-size: 1.2rem;
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ann-c) 16%, transparent);
+}
+.ann-urgent .ann-badge { animation: ann-pulse 2s ease-out infinite; }
+@keyframes ann-pulse {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ann-c) 50%, transparent); }
+    70%  { box-shadow: 0 0 0 12px color-mix(in srgb, var(--ann-c) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ann-c) 0%, transparent); }
+}
+@media (prefers-reduced-motion: reduce) { .ann, .ann-urgent .ann-badge { animation: none; } }
+
+.ann-body { min-width: 0; }
+.ann-meta { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem .75rem; margin-bottom: .25rem; }
+.ann-level {
+    padding: .15rem .6rem; border-radius: 999px; background: var(--ann-c); color: var(--ann-on);
+    font-size: .68rem; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; line-height: 1.5;
+}
+.ann-from { display: inline-flex; align-items: center; gap: .35rem; color: var(--muted); font-size: .78rem; }
+.ann-title { margin: 0; color: var(--ann-ink); font-size: 1.05rem; font-weight: 700; line-height: 1.3; overflow-wrap: anywhere; }
+.ann-message { margin: .2rem 0 0; max-width: 95ch; color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
+
+.ann-when {
+    display: flex; flex-direction: column; gap: .4rem; margin: 0; min-width: 9.5rem;
+    padding-left: 1rem; border-left: 1px dashed color-mix(in srgb, var(--ann-c) 35%, transparent);
+    font-size: .8rem;
+}
+.ann-when dt { color: var(--muted); font-size: .66rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; }
+.ann-when dd { margin: 0; color: var(--ann-ink); font-weight: 600; white-space: nowrap; }
+
+@media (max-width: 767.98px) {
+    .ann { grid-template-columns: auto minmax(0, 1fr); gap: .25rem .8rem; padding: .75rem .85rem .75rem .8rem; }
+    .ann-badge { width: 2.15rem; height: 2.15rem; font-size: 1rem; }
+    .ann-when {
+        grid-column: 2; flex-direction: row; flex-wrap: wrap; gap: .25rem 1.25rem; min-width: 0;
+        margin-top: .35rem; padding: .45rem 0 0; border-left: 0;
+        border-top: 1px dashed color-mix(in srgb, var(--ann-c) 35%, transparent);
+    }
+    .ann-when > div { display: flex; gap: .35rem; align-items: baseline; }
+}
+@media (max-width: 575.98px) { .ann-from { display: none; } }
+
+html[data-theme="dark"] .ann         { --ann-c: #7b95ff; --ann-on: #0c1022; --ann-tint: #182046; --ann-ink: #dfe4ff; }
+html[data-theme="dark"] .ann-warning { --ann-c: #f0b252; --ann-tint: #2c2311; --ann-ink: #f7d98b; }
+html[data-theme="dark"] .ann-urgent  { --ann-c: #ff7b72; --ann-tint: #351618; --ann-ink: #ffc9c4; }
+.ann { box-shadow: 0 6px 18px -10px rgb(0 0 40 / .7); }
+html[data-theme="dark"] .ann { border-top-color: color-mix(in srgb, var(--ann-c) 35%, transparent); border-right-color: color-mix(in srgb, var(--ann-c) 35%, transparent); border-bottom-color: color-mix(in srgb, var(--ann-c) 35%, transparent); }
+@media print { .ann-stack { display: none; } }
 
 /* My suggestions */
 .sug-row { cursor: default; }
 .sug-answer { display: flex; gap: .6rem; margin-top: .6rem; padding: .7rem .85rem; border-radius: 10px; background: var(--brand-tint); font-size: .9375rem; overflow-wrap: anywhere; }
 .sug-answer .bi { color: var(--brand); margin-top: .15rem; }
 
-/* ---------- My requisitions ---------- */
+/* My requisitions */
 .chip-count {
     min-width: 1.4rem; padding: 0 .4rem; border-radius: 999px; text-align: center;
     font-size: .75rem; font-weight: 700; background: var(--brand-tint); color: var(--navy);
@@ -657,7 +705,7 @@ html[data-theme="dark"] .ann-close:hover { background: rgb(255 255 255 / .08); }
 .status-pill.is-rejected  { background: var(--bad-tint); color: var(--bad); border-color: rgb(180 35 24 / .25); }
 .status-pill.is-cancelled { background: #eef0f4; color: var(--muted); border-color: #dfe2ea; }
 
-/* Progress steps: Submitted → Approved → Released */
+/* Progress steps: Submitted, Approved, Released */
 .steps { list-style: none; margin: 0; padding: 0; }
 .steps li { position: relative; display: flex; gap: .875rem; padding-bottom: 1.125rem; }
 .steps li:last-child { padding-bottom: 0; }
@@ -687,7 +735,7 @@ html[data-theme="dark"] .ann-close:hover { background: rgb(255 255 255 / .08); }
 .callout-box.is-bad { background: var(--bad-tint); border-color: #f2b8b2; }
 .callout-box.is-bad > .bi { color: var(--bad); }
 
-/* ---------- Printing (APP-CSE, and the RIS print page later) ---------- */
+/* Printing (APP-CSE, and the RIS print page) */
 @media print {
     .topbar, .suggest-fab, .toast-stack, .no-print, #blazor-error-ui { display: none !important; }
     body { background: #fff; }
@@ -704,7 +752,7 @@ html[data-theme="dark"] .ann-close:hover { background: rgb(255 255 255 / .08); }
     .cart-layout { display: block; }
 }
 
-/* ---------- Template defaults kept from the Blazor project ---------- */
+/* Defaults I kept from the Blazor project template */
 .valid.modified:not([type=checkbox]) { outline: 1px solid #26b050; }
 .invalid { outline: 1px solid #e50000; }
 .validation-message { color: #e50000; }
@@ -719,9 +767,7 @@ html[data-theme="dark"] .ann-close:hover { background: rgb(255 255 255 / .08); }
         content: "An error has occurred."
     }
 
-/* =====================================================================
-   Theme switch + Philippine-time clock
-   ===================================================================== */
+/* Theme switch and the Philippine time clock */
 .theme-toggle {
     display: inline-grid; place-items: center; width: 38px; height: 38px; flex: none;
     border-radius: 10px; border: 1px solid rgb(255 255 255 / .35); background: none;
@@ -737,10 +783,8 @@ html[data-theme="dark"] .ann-close:hover { background: rgb(255 255 255 / .08); }
 .ph-clock-date { font-size: .75rem; opacity: .8; white-space: nowrap; }
 .topbar-clock { margin-left: auto; margin-right: .5rem; padding: .25rem .75rem; border-left: 1px solid rgb(255 255 255 / .2); }
 
-/* =====================================================================
-   Dark mode (html[data-theme="dark"]) — navy bars, gold and the
-   RIS paper stay the same; surfaces and text switch to dark.
-   ===================================================================== */
+/* Dark mode (html[data-theme="dark"]). The navy bars, gold and the RIS paper
+   stay the same. Only the backgrounds and text switch to dark. */
 html[data-theme="dark"] {
     --ink: #e7e9f4;
     --muted: #9ba3bf;
@@ -788,10 +832,10 @@ html[data-theme="dark"] .picker-option.is-active { background: #232c5c; }
 html[data-theme="dark"] .am-close:hover { background: #222844; }
 html[data-theme="dark"] .am-message { color: var(--muted); }
 html[data-theme="dark"] .empty-state > .bi { color: var(--muted); }
-/* The RIS stays black-on-white: it's a paper form */
+/* The RIS stays black on white because it's a paper form */
 html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 
-/* Printing always uses the light colours, whatever the screen theme */
+/* Printing always uses the light colors, whatever theme is on screen */
 @media print {
     html[data-theme="dark"] {
         --ink: #141a3a; --muted: #565f7a; --line: #d8dcea; --surface: #ffffff; --canvas: #ffffff;
@@ -801,17 +845,15 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
     .theme-toggle, .ph-clock { display: none !important; }
 }
 
-/* =====================================================================
-   Small-screen fixes (found by rendering every page from 320 px to 1920 px)
-   ===================================================================== */
-/* Grid and flex children may shrink below their content; long text then wraps or
-   gets "…" instead of pushing the whole page sideways. */
+/* Small screen fixes (I checked every page from 320 px to 1920 px wide) */
+/* Grid and flex children are allowed to shrink, so long text wraps or
+   gets "..." instead of pushing the whole page sideways. */
 .cart-layout > *, .req-list > *, .req-main, .cart-info, .slip-column, .cart-column { min-width: 0; }
 
 /* Phones: a tighter top bar so every button fits, down to 320 px wide */
 @media (max-width: 575.98px) {
     .topbar-inner { gap: .5rem; min-height: 60px; }
-    .brand { flex: none; }                       /* the logo never shrinks under the buttons */
+    .brand { flex: none; }                       /* the logo doesn't shrink under the buttons */
     .topbar-actions { min-width: 0; margin-left: auto; }
     .brand-pill { padding: .25rem .6rem; }
     .brand-pill img { height: 26px; }
@@ -823,7 +865,7 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
     .topbar-btn .logout-text { display: none; }
 }
 @media (max-width: 399.98px) {
-    /* My APP-CSE stays one tap away through "View your full APP-CSE" on the home page */
+    /* My APP-CSE is still reachable from "View your full APP-CSE" on the home page */
     .topbar-link-appcse { display: none; }
     .topbar-inner { gap: .35rem; }
     .topbar-actions { gap: .15rem; }
@@ -835,8 +877,8 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
     .cart-count { min-width: 1.15rem; height: 1.15rem; font-size: .6875rem; }
 }
 
-/* Signed RIS on phones: many phone browsers can't show a PDF inside a page,
-   so phones get a big "Open" button instead of the embedded viewer. */
+/* Signed RIS on phones: a lot of phone browsers can't show a PDF inside a page,
+   so on phones I show a big "Open" button instead. */
 .pdf-open-mobile { display: none; }
 @media (max-width: 767.98px) {
     .pdf-frame { display: none; }
@@ -846,7 +888,7 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 /* Top bar labels stay on one line ("My APP-CSE" never wraps) */
 .topbar-link, .topbar-user, .brand-text strong, .brand-text small { white-space: nowrap; }
 
-/* "Sound is blocked" button, shown only when the browser blocked an alert sound */
+/* "Sound is blocked" button, only shown when the browser blocked an alert sound */
 .sound-hint {
     position: fixed; left: 50%; bottom: 1.25rem; transform: translateX(-50%); z-index: 2100;
     display: inline-flex; align-items: center; gap: .5rem; padding: .6rem 1rem; border-radius: 999px;
@@ -858,9 +900,7 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 @keyframes sound-hint-in { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translateX(-50%); } }
 @media print { .sound-hint { display: none; } }
 
-/* =====================================================================
-   Perishable supplies: MFD / EXP on the catalog card and item details
-   ===================================================================== */
+/* Perishable supplies: MFD / EXP on the catalog card and item details */
 .item-dates {
     display: flex; flex-wrap: wrap; gap: .125rem .625rem; margin: .375rem 0 0; padding: .3rem .5rem;
     border-radius: 8px; background: var(--brand-tint); font-size: .75rem; color: var(--ink);
@@ -875,9 +915,7 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 .exp-date.is-soon { color: var(--warn); }
 .exp-date.is-expired { color: var(--bad); }
 
-/* =====================================================================
-   Top bar: gold dot on "What's new"
-   ===================================================================== */
+/* Top bar: gold dot on "What's new" */
 .new-dot {
     position: absolute; top: .3rem; right: .3rem; width: .55rem; height: .55rem; border-radius: 50%;
     background: var(--gold); box-shadow: 0 0 0 2px var(--navy); animation: new-dot 2s ease-in-out 3;
@@ -885,9 +923,7 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 @keyframes new-dot { 50% { transform: scale(1.35); } }
 @media (prefers-reduced-motion: reduce) { .new-dot { animation: none; } }
 
-/* =====================================================================
-   Help and FAQ (/help)
-   ===================================================================== */
+/* Help and FAQ (/help) */
 .help-search { position: relative; max-width: 560px; margin-top: 1rem; }
 .help-search .bi { position: absolute; left: .9rem; top: 50%; transform: translateY(-50%); color: var(--muted); }
 .help-search input { padding: .7rem 1rem .7rem 2.5rem; border-radius: 12px; border: 0; box-shadow: 0 6px 18px rgb(0 0 40 / .18); font-size: 1rem; }
@@ -944,9 +980,7 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 .help-contact h2 { font-size: 1.0625rem; font-weight: 700; margin: 0 0 .25rem; }
 .help-contact p { margin: 0; color: var(--muted); }
 
-/* =====================================================================
-   What's new (/whats-new)
-   ===================================================================== */
+/* What's new (/whats-new) */
 .changelog-filter { display: flex; flex-wrap: wrap; gap: .5rem; margin-bottom: 1.25rem; }
 .changelog-filter .status-chip {
     display: inline-flex; align-items: center; gap: .4rem; padding: .4rem .8rem; border-radius: 999px;
@@ -985,11 +1019,9 @@ html[data-theme="dark"] .ris-sheet { color: #000; background: #fff; }
 html[data-theme="dark"] .changelog-filter .status-chip.is-active { background: var(--brand); border-color: var(--brand); }
 html[data-theme="dark"] .help-search input { background: var(--surface); color: var(--ink); }
 
-/* =====================================================================
-   Top bar — sized for every width (measured from 360 to 1920 px): nothing
-   shrinks under the clock or overlaps; less important labels turn into icons
-   (with tooltips) as the screen gets narrower, and the clock shows from 1400 px.
-   ===================================================================== */
+/* Top bar sizes for every screen width (I tested 360 to 1920 px). Nothing shrinks
+   under the clock or overlaps. Less important labels turn into icons (with tooltips)
+   on smaller screens, and the clock only shows from 1400 px. */
 .brand { flex: none; }
 .brand-text { white-space: nowrap; }
 .topbar-clock { flex: none; }
@@ -1002,3 +1034,149 @@ html[data-theme="dark"] .help-search input { background: var(--surface); color: 
     .brand-pill { padding: .25rem .6rem; }
     .brand-pill img { height: 28px; }
 }
+
+/* Top bar stays at the top, and the back to top button */
+.topbar { position: sticky; top: 0; z-index: 1030; }
+/* Announcements stay right under the top bar while scrolling, until AMS ends them. */
+.ann-stack { position: sticky; top: var(--bar-h, 0px); z-index: 1025; transition: box-shadow .2s ease; }
+html.is-scrolled .ann-stack { box-shadow: 0 6px 16px -6px rgb(0 0 40 / .45); }
+html.is-scrolled .ann-stack .ann-list { padding-top: .5rem; padding-bottom: .5rem; }
+/* On phones a scrolled announcement gets shorter so it doesn't cover the page. */
+@media (max-width: 767.98px) {
+    html.is-scrolled .ann-stack .ann-when, html.is-scrolled .ann-stack .ann-from { display: none; }
+    html.is-scrolled .ann-stack .ann-message { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+}
+@media print { .ann-stack { position: static; } }
+.slip-sticky { top: calc(var(--topbar-h, 0px) + 1rem); }
+@media (min-width: 992px) { .help-nav { top: calc(var(--topbar-h, 0px) + 1rem); } }
+.help-topic, .help-item { scroll-margin-top: calc(var(--topbar-h, 0px) + 1rem); }
+
+/* Back to top: above "Suggest a supply", shows after scrolling down one screen */
+.scroll-top {
+    position: fixed; right: 1.25rem; bottom: 5.25rem; z-index: 1030;
+    width: 46px; height: 46px; display: grid; place-items: center;
+    border: 2px solid var(--gold); border-radius: 50%;
+    background: var(--navy); color: #fff; font-size: 1.25rem;
+    box-shadow: 0 8px 20px rgb(0 0 40 / .3);
+    opacity: 0; visibility: hidden; transform: translateY(12px);
+    transition: opacity .2s ease, transform .2s ease, visibility .2s;
+}
+.show-scroll-top .scroll-top { opacity: 1; visibility: visible; transform: none; }
+.scroll-top:hover { background: var(--royal); }
+.scroll-top:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 575.98px) { .scroll-top { right: .75rem; bottom: 4.25rem; width: 42px; height: 42px; } }
+@media (prefers-reduced-motion: reduce) { .scroll-top { transition: none; } }
+@media print { .scroll-top { display: none !important; } }
+
+/* Calendar (DatePicker), my replacement for the browser's plain date box */
+.datepicker { position: relative; }
+.datepicker-toggle {
+    display: flex; align-items: center; gap: .55rem; text-align: left; cursor: pointer;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.datepicker-toggle > .bi { color: var(--brand); flex: none; }
+.datepicker-toggle:disabled { background-color: #f1f3f8; color: var(--muted); cursor: default; }
+.datepicker.is-open .datepicker-toggle { border-color: var(--brand); box-shadow: 0 0 0 .2rem rgb(11 47 168 / .18); }
+.datepicker-placeholder { color: var(--muted); }
+.datepicker-value { overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+
+.datepicker-panel {
+    /* ui.js changes this to position: fixed, makes it as wide as the field, and shows it */
+    position: absolute; z-index: 1041; left: 0; top: calc(100% + 4px); visibility: hidden;
+    width: 18.5rem; max-width: calc(100vw - 1rem); max-height: calc(100dvh - 1rem); overflow-y: auto; padding: .625rem;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 12px 32px rgb(0 0 40 / .18);
+}
+.datepicker-panel.is-placed { visibility: visible; }
+
+.dp-head { display: flex; align-items: center; gap: .25rem; margin-bottom: .375rem; }
+.dp-nav, .dp-title {
+    border: 0; background: none; color: var(--ink); border-radius: 8px; height: 2.125rem;
+}
+.dp-nav { width: 2.125rem; display: inline-grid; place-items: center; color: var(--brand); }
+.dp-title { flex: 1; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: .35rem; }
+.dp-title .bi { font-size: .75rem; color: var(--muted); }
+.dp-title:disabled .bi { display: none; }
+.dp-title:disabled { color: var(--ink); opacity: 1; }
+.dp-nav:hover, .dp-title:not(:disabled):hover { background: var(--brand-tint); }
+
+.dp-weekdays, .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-weekdays span { text-align: center; font-size: .75rem; font-weight: 700; color: var(--muted); padding: .25rem 0; text-transform: uppercase; letter-spacing: .03em; }
+.dp-grid { outline: none; border-radius: 8px; }
+.dp-grid:focus-visible { box-shadow: 0 0 0 2px rgb(11 47 168 / .25); }
+.dp-day {
+    height: 2.25rem; border: 0; background: none; border-radius: 8px; color: var(--ink);
+    font-size: .875rem; font-variant-numeric: tabular-nums; position: relative;
+}
+.dp-day:hover:not(:disabled) { background: var(--brand-tint); }
+.dp-day.is-outside { color: var(--muted); opacity: .55; }
+.dp-day.is-today { font-weight: 800; color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--gold); }
+.dp-grid:focus .dp-day.is-active:not(.is-selected) { box-shadow: inset 0 0 0 2px var(--brand); }
+.dp-day.is-selected, .dp-cell.is-selected { background: var(--navy); color: #fff; font-weight: 700; }
+.dp-day.is-selected.is-today { box-shadow: inset 0 0 0 2px var(--gold); }
+.dp-day:disabled, .dp-cell:disabled { color: var(--muted); opacity: .35; text-decoration: line-through; cursor: not-allowed; }
+
+.dp-months { display: grid; grid-template-columns: repeat(3, 1fr); gap: .375rem; padding: .25rem 0; }
+.dp-cell { border: 0; background: none; border-radius: 8px; padding: .75rem 0; font-weight: 600; color: var(--ink); }
+.dp-cell:hover:not(:disabled) { background: var(--brand-tint); }
+.dp-cell.is-today:not(.is-selected) { color: var(--brand); box-shadow: inset 0 0 0 1.5px var(--gold); }
+
+.dp-time { display: flex; align-items: center; gap: .375rem; margin-top: .5rem; padding-top: .625rem; border-top: 1px solid var(--line); }
+.dp-time > .bi { color: var(--brand); }
+.dp-time .form-select { width: auto; padding-right: 1.75rem; }
+.dp-ampm { display: inline-flex; margin-left: auto; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.dp-ampm button { border: 0; background: var(--surface); color: var(--muted); padding: .25rem .6rem; font-size: .8125rem; font-weight: 700; }
+.dp-ampm button.is-on { background: var(--navy); color: #fff; }
+
+.dp-foot { display: flex; align-items: center; gap: .75rem; margin-top: .5rem; padding-top: .5rem; border-top: 1px solid var(--line); }
+.dp-link { border: 0; background: none; padding: .25rem .125rem; color: var(--brand); font-weight: 700; font-size: .875rem; }
+.dp-link:hover:not(:disabled) { text-decoration: underline; }
+.dp-link.is-muted { color: var(--muted); }
+.dp-link:disabled { opacity: .4; }
+
+html[data-theme="dark"] .datepicker-toggle:disabled { background-color: #10142a; }
+html[data-theme="dark"] .dp-day.is-selected, html[data-theme="dark"] .dp-cell.is-selected,
+html[data-theme="dark"] .dp-ampm button.is-on { background: var(--brand); }
+
+/* Item colors (database update 020) */
+.swatch {
+    display: inline-block; flex: none; width: .9rem; height: .9rem; border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / .12);
+}
+.swatch.is-light { box-shadow: inset 0 0 0 1px rgb(0 0 0 / .3); }
+.swatch.is-any { background: conic-gradient(#dc2626, #facc15, #16a34a, #1d4ed8, #7c3aed, #dc2626); }
+.item-colors { display: flex; align-items: center; gap: .2rem; margin: .35rem 0 0; color: var(--muted); font-size: .8rem; }
+.item-colors .swatch { width: .75rem; height: .75rem; }
+.item-colors > span:last-child { margin-left: .3rem; }
+
+.detail-colors { margin: .25rem 0 1rem; }
+.detail-colors-label { display: block; margin-bottom: .45rem; font-size: .9rem; color: var(--muted); }
+.detail-colors-label strong { color: var(--ink); }
+.color-options { display: flex; flex-wrap: wrap; gap: .4rem; }
+.color-option {
+    display: inline-flex; align-items: center; gap: .45rem; padding: .4rem .8rem;
+    border: 1.5px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--ink);
+    font-weight: 600; font-size: .9rem; transition: border-color .12s ease, background .12s ease;
+}
+.color-option .swatch { width: 1rem; height: 1rem; }
+.color-option:hover { border-color: var(--brand); }
+.color-option.is-on { border-color: var(--brand); background: var(--brand-tint); box-shadow: 0 0 0 2px rgb(11 47 168 / .15); }
+.detail-colors-error { display: flex; gap: .35rem; align-items: center; margin: .5rem 0 0; color: var(--bad); font-size: .85rem; font-weight: 600; }
+
+.cart-colors { list-style: none; margin: .6rem 0 .4rem; padding: 0; display: grid; gap: .4rem; }
+.cart-colors li { display: flex; align-items: center; gap: .6rem; }
+.cart-color-name { display: inline-flex; align-items: center; gap: .45rem; min-width: 7.5rem; font-weight: 600; font-size: .9rem; }
+.cart-color-remove {
+    display: grid; place-items: center; width: 1.9rem; height: 1.9rem; padding: 0; border: 0; border-radius: 50%;
+    background: none; color: var(--muted);
+}
+.cart-color-remove:hover:not(:disabled) { background: var(--bad-tint, #fbe5e3); color: var(--bad, #b42318); }
+.cart-add-color { display: flex; flex-wrap: wrap; align-items: center; gap: .3rem; margin: .2rem 0 .5rem; font-size: .8rem; color: var(--muted); }
+.color-preset {
+    display: inline-flex; align-items: center; gap: .35rem; padding: .15rem .55rem;
+    border: 1px dashed var(--line); border-radius: 999px; background: var(--surface); color: var(--ink); font-size: .8rem;
+}
+.color-preset:hover:not(:disabled) { border-style: solid; border-color: var(--brand); background: var(--brand-tint); }
+.cart-color-total { font-size: .9rem; color: var(--muted); }
+.cart-color-total strong { color: var(--ink); }
+@media (prefers-reduced-motion: reduce) { .color-option { transition: none; } }

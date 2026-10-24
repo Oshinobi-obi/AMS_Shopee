@@ -10,8 +10,10 @@
 </main>
 
 <SuggestionFab />
+@* Back to top button (ui.js shows it after scrolling down) *@
+<button type="button" class="scroll-top" data-scroll-top aria-label="Back to top" title="Back to top"><i class="bi bi-arrow-up" aria-hidden="true"></i></button>
 <ToastHost />
-@* One host for every dialog in the app (confirmations, alerts, login, forms). *@
+@* This is the one place that shows every dialog in the app (confirmations, alerts, login, forms). *@
 <ModalHost />
 
 <div id="blazor-error-ui" data-nosnippet>

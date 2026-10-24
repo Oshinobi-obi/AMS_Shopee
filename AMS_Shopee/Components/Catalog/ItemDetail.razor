@@ -1,4 +1,5 @@
-@* Item detail, shown inside a modal: Modal.ShowComponentAsync<ItemDetail>(name, { ["ItemId"] = id }) *@
+@* This is the item details, shown inside a modal. I open it with
+   Modal.ShowComponentAsync<ItemDetail>(name, { ["ItemId"] = id }) *@
 @inject CatalogService CatalogSvc
 @inject RequisitionService Requisitions
 @inject AddToCartFlow Flow
@@ -36,20 +37,42 @@ else
                 <dt>AMS stockroom</dt><dd>@_item.StockOnHand.ToString("N0") @_item.Unit</dd>
                 @if (_item.DaysToExpiry is int days)
                 {
-                    <dt>MFD</dt><dd>@(_item.ManufacturedOn?.ToString("MMMM d, yyyy") ?? "Not indicated")</dd>
+                    <dt>MFD</dt><dd>@(_item.ManufacturedOn is { } mfd ? CatalogItem.FormatDate(mfd, _item.MfdMonthOnly, longMonth: true) : "Not indicated")</dd>
                     <dt>EXP</dt>
                     <dd>
                         <span class="exp-date @_item.ExpiryCss">
-                            @_item.ExpiresOn!.Value.ToString("MMMM d, yyyy")
+                            @CatalogItem.FormatDate(_item.ExpiresOn!.Value, _item.ExpMonthOnly, longMonth: true)
                             @(days < 0 ? "· expired" : days == 0 ? "· expires today" : days <= CatalogItem.ExpirySoonDays ? $"· {days} day{(days == 1 ? "" : "s")} left" : "")
                         </span>
                     </dd>
                 }
             </dl>
 
-            @if (_isOffice)
+            @if (_isOffice && _appCseRequired)
             {
                 <QuotaMeter Balance="_balance" Unit="@_item.Unit" />
+            }
+
+            @if (_item.Colors.Count > 0)
+            {
+                <div class="detail-colors">
+                    <span class="detail-colors-label" id="detail-colors-label">Color: <strong>@(_color ?? "choose one")</strong></span>
+                    <div class="color-options" role="radiogroup" aria-labelledby="detail-colors-label">
+                        @foreach (var c in _item.Colors)
+                        {
+                            var name = c.Name;
+                            var on = _color == name;
+                            <button type="button" role="radio" aria-checked="@(on ? "true" : "false")" class="color-option @(on ? "is-on" : "")"
+                                    @onclick="() => { _color = name; _colorError = false; }">
+                                <span class="swatch @(ItemColors.IsLight(c.Hex) ? "is-light" : "")" style="background:@c.Hex" aria-hidden="true"></span>@c.Name
+                            </button>
+                        }
+                    </div>
+                    @if (_colorError)
+                    {
+                        <p class="detail-colors-error" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>Choose a color first. Need several colors? Add them one at a time.</p>
+                    }
+                </div>
             }
 
             <div class="detail-buy">
@@ -63,7 +86,7 @@ else
                     </button>
                 </div>
                 <button type="button" class="btn btn-accent btn-lg flex-grow-1" @onclick="AddAsync"
-                        disabled="@(_busy || (_isOffice && (_balance is null || _balance.CanStillAdd == 0)))">
+                        disabled="@(_busy || (_isOffice && _appCseRequired && (_balance is null || _balance.CanStillAdd == 0)))">
                     @if (_busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
                     else { <i class="bi bi-cart-plus me-1" aria-hidden="true"></i> }
                     Add to cart
@@ -75,7 +98,7 @@ else
 
 @if (_zoom && _item is not null && !string.IsNullOrEmpty(_item.ImagePath))
 {
-    @* Full-screen photo. Click anywhere, press Esc or use ✕ to close. *@
+    @* This is the full screen photo. Click anywhere, press Esc or click X to close it. *@
     <div class="photo-viewer" role="dialog" aria-modal="true" aria-label="@($"Photo of {_item.Name}")" tabindex="-1"
          @ref="_viewer" @onclick="() => _zoom = false" @onkeydown="OnViewerKey" @onkeydown:stopPropagation="true">
         <button type="button" class="photo-viewer-close" aria-label="Close the photo" @onclick="() => _zoom = false" @onclick:stopPropagation="true">
@@ -94,16 +117,18 @@ else
 
     private CatalogItem? _item;
     private QuotaBalance? _balance;
-    private bool _isOffice, _busy, _notFound;
+    private bool _isOffice, _busy, _notFound, _appCseRequired = true;
     private int _qty = 1;
+    private string? _color;
+    private bool _colorError;
 
-    // Full-screen photo viewer
+    // Full screen photo viewer
     private bool _zoom, _zoomFocused;
     private ElementReference _viewer;
 
     private void OnViewerKey(KeyboardEventArgs e)
     {
-        if (e.Key is "Escape" or "Enter" or " ") _zoom = false;   // Esc closes only the photo, not the item window
+        if (e.Key is "Escape" or "Enter" or " ") _zoom = false;   // Esc only closes the photo, not the whole item window
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -111,13 +136,13 @@ else
         if (_zoom && !_zoomFocused)
         {
             _zoomFocused = true;
-            try { await _viewer.FocusAsync(); } catch { /* closed meanwhile */ }
+            try { await _viewer.FocusAsync(); } catch { /* already closed */ }
         }
         if (!_zoom) _zoomFocused = false;
     }
 
-    // Offices are capped at what they can still add; others at a sane maximum.
-    private int MaxQty => _isOffice && _balance is not null ? Math.Max(1, _balance.CanStillAdd) : 9999;
+    // Offices can only go up to what they can still add. Other accounts get a high limit.
+    private int MaxQty => _isOffice && _appCseRequired && _balance is not null ? Math.Max(1, _balance.CanStillAdd) : 9999;
 
     protected override async Task OnInitializedAsync()
     {
@@ -125,6 +150,7 @@ else
         _notFound = _item is null;
         var user = await Flow.GetUserAsync();
         _isOffice = user?.IsOffice == true;
+        _appCseRequired = await Requisitions.AppCseRequiredAsync();
         if (_isOffice) _balance = await Requisitions.GetBalanceAsync(user, ItemId);
     }
 
@@ -134,10 +160,11 @@ else
     private async Task AddAsync()
     {
         if (_item is null) return;
+        if (_item.Colors.Count > 0 && _color is null) { _colorError = true; return; }
         _busy = true;
         try
         {
-            if (await Flow.AddAsync(_item.ItemId, _item.Name, _item.Unit, _qty))
+            if (await Flow.AddAsync(_item.ItemId, _item.Name, _item.Unit, _qty, _color))
                 Instance?.Close(ModalResult.Ok());
         }
         finally { _busy = false; }

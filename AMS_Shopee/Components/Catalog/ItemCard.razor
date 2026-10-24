@@ -1,5 +1,5 @@
-@* One product card in the catalog grid. Clicking the card opens the detail modal;
-   the button adds 1 unit straight to the cart. *@
+@* This is one product card in the catalog. Clicking the card opens the item details,
+   and the button adds 1 unit straight to the cart. *@
 
 <article class="item-card @(Item.Level == StockLevel.OutOfStock ? "is-out" : "")">
     <button type="button" class="item-open" @onclick="OnOpen" aria-label="@($"View details of {Item.Name}")">
@@ -29,9 +29,19 @@
                 <p class="item-dates @Item.ExpiryCss">
                     @if (Item.ManufacturedOn is { } mfd)
                     {
-                        <span><b>MFD</b> @mfd.ToString("MMM d, yyyy")</span>
+                        <span><b>MFD</b> @CatalogItem.FormatDate(mfd, Item.MfdMonthOnly)</span>
                     }
-                    <span><b>EXP</b> @Item.ExpiresOn!.Value.ToString("MMM d, yyyy")@(days < 0 ? " (expired)" : "")</span>
+                    <span><b>EXP</b> @CatalogItem.FormatDate(Item.ExpiresOn!.Value, Item.ExpMonthOnly)@(days < 0 ? " (expired)" : "")</span>
+                </p>
+            }
+            @if (Item.Colors.Count > 0)
+            {
+                <p class="item-colors" title="@string.Join(", ", Item.Colors.Select(c => c.Name))">
+                    @foreach (var c in Item.Colors.Take(8))
+                    {
+                        <span class="swatch @(ItemColors.IsLight(c.Hex) ? "is-light" : "")" style="background:@c.Hex" aria-hidden="true"></span>
+                    }
+                    <span>@Item.Colors.Count @(Item.Colors.Count == 1 ? "color" : "colors")</span>
                 </p>
             }
             @if (Item.Supplier is not null)
@@ -41,15 +51,25 @@
         </div>
     </button>
 
-    @if (IsOffice)
+    @if (IsOffice && AppCseRequired)
     {
         <div class="item-quota"><QuotaMeter Balance="Balance" Unit="@Item.Unit" Compact="true" /></div>
     }
 
     <div class="item-actions">
-        <button type="button" class="btn btn-accent w-100" @onclick="OnAdd" disabled="@AddDisabled">
-            <i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to cart
-        </button>
+        @if (Item.Colors.Count > 0)
+        {
+            @* If the item has colors, I open the details instead so they can pick a color *@
+            <button type="button" class="btn btn-accent w-100" @onclick="OnOpen" disabled="@AddDisabled">
+                <i class="bi bi-palette me-1" aria-hidden="true"></i>Choose color
+            </button>
+        }
+        else
+        {
+            <button type="button" class="btn btn-accent w-100" @onclick="OnAdd" disabled="@AddDisabled">
+                <i class="bi bi-cart-plus me-1" aria-hidden="true"></i>Add to cart
+            </button>
+        }
     </div>
 </article>
 
@@ -57,10 +77,12 @@
     [Parameter, EditorRequired] public CatalogItem Item { get; set; } = default!;
     [Parameter] public bool IsOffice { get; set; }
     [Parameter] public QuotaBalance? Balance { get; set; }
+    /// When the admin turns off "Require APP-CSE", the balance no longer limits what an office can add.
+    [Parameter] public bool AppCseRequired { get; set; } = true;
     [Parameter] public EventCallback OnOpen { get; set; }
     [Parameter] public EventCallback OnAdd { get; set; }
 
-    // Offices can't add what isn't in their APP-CSE or what they've used up;
-    // the quota meter right above explains why.
-    private bool AddDisabled => IsOffice && (Balance is null || Balance.CanStillAdd == 0);
+    // An office can't add an item that isn't in their APP-CSE or that they already used up.
+    // The quota meter above the button tells them why.
+    private bool AddDisabled => IsOffice && AppCseRequired && (Balance is null || Balance.CanStillAdd == 0);
 }

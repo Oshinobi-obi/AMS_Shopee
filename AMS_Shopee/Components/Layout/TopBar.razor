@@ -6,14 +6,15 @@
 @inject NavigationManager Nav
 
 <header class="topbar">
+    <SeasonDecor />
     <div class="container-xl topbar-inner">
-        <a class="brand" href="/" aria-label="AMS Supplies home">
+        <a class="brand" href="/" aria-label="e-SRS home">
             <span class="brand-pill">
                 <img src="images/one-ncr-stronger-together.png" alt="DepEd NCR, One NCR Stronger Together" width="119" height="38" />
             </span>
             <span class="brand-text">
-                <strong>AMS Supplies</strong>
-                <small>Asset Management Section</small>
+                <strong>e-SRS</strong>
+                <small>Supply Requisition System</small>
             </span>
         </a>
 
@@ -31,6 +32,10 @@
                 @if (_isNew) { <span class="new-dot"><span class="visually-hidden">New updates</span></span> }
             </NavLink>
             <ThemeToggle Class="topbar-theme" />
+            <NavLink class="topbar-link" href="my-accountability" title="My accountability: property under your name">
+                <i class="bi bi-person-vcard" aria-hidden="true"></i>
+                <span class="d-none d-xxl-inline">My accountability</span>
+            </NavLink>
             <AuthorizeView>
                 <Authorized>
                     @if (_user?.IsOffice == true)
@@ -82,7 +87,7 @@
         await Cart.RefreshAsync();
     }
 
-    // Gold dot on "What's new" until this browser has opened the page for the newest version.
+    // Gold dot on "What's new" until this browser opens the page for the newest version.
     private bool _isNew;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -94,7 +99,7 @@
                      && !Nav.Uri.Contains("/whats-new", StringComparison.OrdinalIgnoreCase);
             if (_isNew) StateHasChanged();
         }
-        catch { /* prerendering or closed */ }
+        catch { /* still loading or already closed */ }
     }
 
     private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)

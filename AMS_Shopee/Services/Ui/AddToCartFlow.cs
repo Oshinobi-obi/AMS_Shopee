@@ -1,8 +1,8 @@
-// AddToCartFlow.cs — the one place that decides what "Add to cart" does:
-//   guest            → login modal (and the item is added right after login)
-//   blocked by rules → explanation modal (e.g. "Exceeds APP-CSE balance")
-//   allowed          → toast, or a warning modal when warehouse stock is short
-// Used by item cards, the item detail modal, and the ?add= resume after login.
+// This is the one place that decides what "Add to cart" does:
+//   guest              shows the login modal (and adds the item right after login)
+//   blocked by a rule  shows a modal explaining why (like "Exceeds APP-CSE balance")
+//   allowed            shows a toast, or a warning modal if the warehouse stock is short
+// The item cards, the item details and the ?add= after login all use this.
 
 using AMS_Shopee.Components.Account;
 using AMS_Shopee.Components.Shared.Modals;
@@ -31,15 +31,15 @@ public sealed class AddToCartFlow(
             pendingItemId is null ? "Log in" : "Log in to add this item",
             new()
             {
-                ["ReturnUrl"] = new Uri(nav.Uri).AbsolutePath,   // drop ?login= / ?add= leftovers
+                ["ReturnUrl"] = new Uri(nav.Uri).AbsolutePath,   // remove the leftover ?login= / ?add=
                 ["PendingItemId"] = pendingItemId,
                 ["PendingQty"] = pendingQty,
                 ["Message"] = message,
             },
             ModalSize.Small);
 
-    /// Returns true when the item actually went into the cart.
-    public async Task<bool> AddAsync(uint itemId, string itemName, string unit, int qty)
+    /// Returns true when the item really went into the cart.
+    public async Task<bool> AddAsync(uint itemId, string itemName, string unit, int qty, string? color = null)
     {
         var user = await GetUserAsync();
         if (user is null)
@@ -51,7 +51,7 @@ public sealed class AddToCartFlow(
         CartCheck result;
         try
         {
-            result = await requisitions.AddToCartAsync(user, itemId, qty);
+            result = await requisitions.AddToCartAsync(user, itemId, qty, color);
         }
         catch (Exception ex)
         {
@@ -71,11 +71,12 @@ public sealed class AddToCartFlow(
         await cart.RefreshAsync();
 
         var warning = result.Issues.FirstOrDefault(i => i.Severity == IssueSeverity.Warning);
+        var what = color is null ? itemName : $"{itemName} ({color})";
         if (warning is null)
-            toast.Show($"Added {qty} {unit} of {itemName} to your cart.");
+            toast.Show($"Added {qty} {unit} of {what} to your cart.");
         else
             await modal.AlertAsync("Added, but warehouse stock is limited",
-                $"{qty} {unit} of {itemName} is in your cart. {warning.Message}", ModalVariant.Warning);
+                $"{qty} {unit} of {what} is in your cart. {warning.Message}", ModalVariant.Warning);
         return true;
     }
 }

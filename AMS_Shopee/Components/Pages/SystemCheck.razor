@@ -2,8 +2,8 @@
 @inject IDbContextFactory<AmsDbContext> DbFactory
 @inject ModalService Modal
 
-@* Temporary page to confirm the database, modals and RIS layout are wired up.
-   Delete it once the real catalog page exists. *@
+@* This is a temporary page I used to check that the database, modals and RIS layout work.
+   I'll delete it once everything is final. *@
 
 <PageTitle>System check</PageTitle>
 
@@ -25,7 +25,7 @@
         {
             <p>
                 Connected to <strong>ams_stockwatch</strong>.
-                @_offices.Count(o => o.CanRequisition) offices can requisition (expected 22).
+                @_offices.Count(o => o.CanRequisition) offices can requisition.
                 Migration 001 recorded: <strong>@(_migrated ? "yes" : "no")</strong>.
             </p>
             <div class="table-responsive">

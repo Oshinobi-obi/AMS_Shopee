@@ -1,0 +1,69 @@
+@* This is the viewer for one property document (PAR, ICS or Return Slip). It shows the PDF,
+   the details, and the property listed on it, with Download and Print buttons. *@
+@inject IJSRuntime JS
+
+<div class="doc-viewer">
+    <div class="doc-pdf">
+        <iframe id="@FrameId" class="doc-frame" src="@Url" title="@Document.FileName"></iframe>
+        <div class="doc-open-mobile">
+            <i class="bi bi-file-earmark-pdf text-danger" aria-hidden="true"></i>
+            <p>Phones open PDFs in their own viewer.</p>
+            <a class="btn btn-accent btn-lg w-100" href="@Url" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right me-1" aria-hidden="true"></i>Open the PDF</a>
+        </div>
+    </div>
+
+    <aside class="doc-side">
+        <div class="doc-actions">
+            <a class="btn btn-primary" href="@($"{Url}&download=true")"><i class="bi bi-download me-1" aria-hidden="true"></i>Download</a>
+            <button type="button" class="btn btn-outline-primary doc-print" @onclick="PrintAsync"><i class="bi bi-printer me-1" aria-hidden="true"></i>Print</button>
+        </div>
+
+        <dl class="doc-facts">
+            <div><dt>Document</dt><dd>@AMS_Shopee.Components.Pages.MyAccountability.TypeName(Document.DocumentType)</dd></div>
+            @if (!string.IsNullOrEmpty(PersonName)) { <div><dt>Accountable person</dt><dd>@PersonName</dd></div> }
+            <div><dt>Type of property</dt><dd>@Document.PropertyType</dd></div>
+            @if (Document.Equipment.Count > 0) { <div><dt>Equipment</dt><dd>@string.Join(", ", Document.Equipment)</dd></div> }
+            <div><dt>Date signed</dt><dd>@(Document.DateSigned?.ToString("MMMM d, yyyy") ?? "Not recorded")</dd></div>
+            @if (Document.IsReturned)
+            {
+                <div><dt>Status</dt><dd class="text-success fw-semibold"><i class="bi bi-arrow-return-left me-1" aria-hidden="true"></i>Returned @Document.ReturnedOn!.Value.ToString("MMMM d, yyyy")</dd></div>
+            }
+            else if (!Document.IsReturnSlip)
+            {
+                <div><dt>Status</dt><dd class="fw-semibold">In your care</dd></div>
+            }
+            <div><dt>File</dt><dd class="text-break">@Document.FileName</dd></div>
+        </dl>
+
+        @if (Document.Items.Count > 0)
+        {
+            <h3 class="doc-items-title">Property on this document</h3>
+            <ul class="doc-items">
+                @foreach (var i in Document.Items)
+                {
+                    <li>
+                        <strong>@i.Description</strong>
+                        <span>@i.PropertyNo · @i.Quantity unit@(i.Quantity == 1 ? "" : "s") · ₱@i.Total.ToString("N2")</span>
+                        <span class="doc-item-status">@i.Status</span>
+                    </li>
+                }
+            </ul>
+        }
+    </aside>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public AccountabilityDocument Document { get; set; } = default!;
+    [Parameter] public string? PersonName { get; set; }
+    /// I get this from the birthday check. The PDF links won't open without it.
+    [Parameter] public string? Pass { get; set; }
+
+    private string Url => $"/accountability/documents/{Document.DocumentId}?t={Uri.EscapeDataString(Pass ?? "")}";
+    private string FrameId => $"doc-frame-{Document.DocumentId}";
+
+    private async Task PrintAsync()
+    {
+        try { await JS.InvokeVoidAsync("amsDoc.print", FrameId); }
+        catch (JSException) { }
+    }
+}

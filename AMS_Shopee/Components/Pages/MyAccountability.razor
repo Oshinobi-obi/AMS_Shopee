@@ -1,0 +1,552 @@
+@page "/my-accountability"
+@inject AccountabilityQueries Queries
+@inject ModalService Modal
+@inject NavigationManager Nav
+@inject ILogger<MyAccountability> Log
+@inject BirthdayGate Gate
+@implements IDisposable
+
+<PageTitle>My accountability | e-SRS</PageTitle>
+
+@* This is the My Accountability page. No login is needed. RO personnel choose their office
+   and their name to see the property under their name and the signed PAR, ICS and Return
+   Slips that AMS uploaded. *@
+
+<section class="catalog-hero acc-hero">
+    <SeasonDecor />
+    <div class="container-xl">
+        <h1 class="catalog-title" tabindex="-1">My accountability</h1>
+        <p class="catalog-lede">Choose your office and your name, then enter your birthday to see the property under your name and your signed PAR, ICS and Return Slips.</p>
+    </div>
+</section>
+
+<div class="container-xl catalog-body acc-body">
+    <div class="acc-pickers panel">
+        <div class="acc-pick">
+            <label class="form-label" for="acc-office">Office</label>
+            <PersonnelPicker Id="acc-office" Options="_officeOptions" Value="@(_officeId?.ToString() ?? "")"
+                             ValueChanged="OnOfficeChangedAsync" Placeholder="Select your office" />
+        </div>
+        <div class="acc-pick">
+            <label class="form-label" for="acc-person">Your name</label>
+            @if (_officeId is null)
+            {
+                <button type="button" id="acc-person" class="form-select picker-toggle" disabled><span class="picker-placeholder">Choose your office first</span></button>
+            }
+            else
+            {
+                <PersonnelPicker Id="acc-person" Options="_people" Value="@(_personId?.ToString() ?? "")"
+                                 ValueChanged="OnPersonChangedAsync" Placeholder="@(_people.Count == 0 ? "No personnel listed yet" : "Select your name")" />
+            }
+        </div>
+    </div>
+    @if (_error)
+    {
+        <div class="empty-state">
+            <i class="bi bi-wifi-off" aria-hidden="true"></i>
+            <h2>This page couldn't load</h2>
+            <p>Check your connection, then reload the page.</p>
+        </div>
+    }
+    else if (_personId is null)
+    {
+        <div class="empty-state acc-start">
+            <i class="bi bi-person-vcard" aria-hidden="true"></i>
+            <h2>Whose accountability?</h2>
+            <p>Select your office, then your name above. You'll be asked for your birthday to keep your documents private.</p>
+            <p class="small text-secondary mb-0">Your name isn't listed? Ask AMS to add you as RO personnel of your office.</p>
+        </div>
+    }
+    else if (_pass is null)
+    {
+        <section class="panel acc-gate" aria-labelledby="acc-gate-title">
+            <div class="acc-gate-icon" aria-hidden="true"><i class="bi @(_status?.IsSet == false ? "bi-calendar-heart" : "bi-shield-lock")"></i></div>
+            @if (_status is null)
+            {
+                <p class="acc-gate-lede">Checking…</p>
+            }
+            else if (_status.Unavailable)
+            {
+                <h2 id="acc-gate-title">Not available yet</h2>
+                <p class="acc-gate-lede">The birthday check isn't set up on this website yet. Please tell AMS.</p>
+            }
+            else if (_status.IsLocked)
+            {
+                <h2 id="acc-gate-title">Too many wrong tries</h2>
+                <p class="acc-gate-lede">For @(_person?.FullName ?? "this person")'s privacy, the birthday can't be tried again for <strong>@MinutesLeft(_status.LockedUntilUtc) @(MinutesLeft(_status.LockedUntilUtc) == 1 ? "minute" : "minutes")</strong>.</p>
+                <p class="acc-gate-help"><i class="bi bi-telephone" aria-hidden="true"></i>Need it sooner, or forgot your birthday on file? Contact AMS.</p>
+                <button type="button" class="btn btn-outline-primary" @onclick="RefreshStatusAsync"><i class="bi bi-arrow-clockwise me-1" aria-hidden="true"></i>Try again</button>
+            }
+            else if (_status.IsSet)
+            {
+                <h2 id="acc-gate-title">Confirm it's you</h2>
+                <p class="acc-gate-lede">Your accountability is private. Enter the birthday of <strong>@_person?.FullName</strong> to view it.</p>
+                <form class="acc-gate-form" @onsubmit="VerifyAsync">
+                    <label class="form-label" for="acc-bday">Your birthday</label>
+                    <DatePicker TValue="DateTime?" Id="acc-bday" @bind-Value="_bday" Placeholder="Choose your birthday"
+                                Min="BirthdayHash.Earliest(Today).ToDateTime(TimeOnly.MinValue)" Max="BirthdayHash.Latest(Today).ToDateTime(TimeOnly.MinValue)"
+                                OpenAt="Today.AddYears(-30).ToDateTime(TimeOnly.MinValue)" StartWithYears="true" HideToday="true" Disabled="@_busy" />
+                    @if (_gateError is not null)
+                    {
+                        <div class="form-error" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>@_gateError</div>
+                    }
+                    <button type="submit" class="btn btn-accent btn-lg w-100" disabled="@(_busy || _bday is null)">
+                        @if (_busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+                        <i class="bi bi-unlock me-1" aria-hidden="true"></i>View my accountability
+                    </button>
+                </form>
+                <p class="acc-gate-help"><i class="bi bi-info-circle" aria-hidden="true"></i>Wrong birthday on file, or need to change it? Contact AMS.</p>
+            }
+            else if (_confirming is { } chosen)
+            {
+                <h2 id="acc-gate-title">Is this right?</h2>
+                <p class="acc-gate-lede">You're saving this birthday for <strong>@_person?.FullName</strong>:</p>
+                <p class="acc-gate-date">@chosen.ToString("MMMM d, yyyy")</p>
+                <label class="acc-gate-confirm">
+                    <input class="form-check-input" type="checkbox" @bind="_iAmPerson" />
+                    <span>I am @_person?.FullName. I understand that after saving, only AMS can change my birthday.</span>
+                </label>
+                @if (_gateError is not null)
+                {
+                    <div class="form-error" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>@_gateError</div>
+                }
+                <div class="acc-gate-actions">
+                    <button type="button" class="btn btn-light btn-lg" @onclick="() => { _confirming = null; _gateError = null; }" disabled="@_busy">Back</button>
+                    <button type="button" class="btn btn-accent btn-lg" @onclick="SaveFirstTimeAsync" disabled="@(_busy || !_iAmPerson)">
+                        @if (_busy) { <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span> }
+                        Save and view
+                    </button>
+                </div>
+            }
+            else
+            {
+                <h2 id="acc-gate-title">Set your birthday</h2>
+                <p class="acc-gate-lede">First time here, <strong>@_person?.FullName</strong>? Enter your birthday once. You'll use it every time you open your accountability, so nobody else can see it.</p>
+                <form class="acc-gate-form" @onsubmit="NextFirstTime">
+                    <label class="form-label" for="acc-bday">Your birthday</label>
+                    <DatePicker TValue="DateTime?" Id="acc-bday" @bind-Value="_bday" Placeholder="Choose your birthday"
+                                Min="BirthdayHash.Earliest(Today).ToDateTime(TimeOnly.MinValue)" Max="BirthdayHash.Latest(Today).ToDateTime(TimeOnly.MinValue)"
+                                OpenAt="Today.AddYears(-30).ToDateTime(TimeOnly.MinValue)" StartWithYears="true" HideToday="true" Disabled="@_busy" />
+                    @if (_gateError is not null)
+                    {
+                        <div class="form-error" role="alert"><i class="bi bi-exclamation-circle" aria-hidden="true"></i>@_gateError</div>
+                    }
+                    <button type="submit" class="btn btn-accent btn-lg w-100" disabled="@(_bday is null)">Next</button>
+                </form>
+                <p class="acc-gate-help is-warn"><i class="bi bi-exclamation-triangle" aria-hidden="true"></i>Only @_person?.FullName should do this. Once saved, it can only be changed by AMS.</p>
+            }
+        </section>
+    }
+    else if (_docs is null)
+    {
+        <LoadingSkeleton Kind="list" Rows="3" Label="Loading your accountability…" />
+    }
+    else
+    {
+        <div class="acc-person-head">
+            <div>
+                <h2>@_person?.FullName</h2>
+                <p>@_person?.Position · @_office?.Name (@_office?.Acronym)</p>
+            </div>
+            <dl class="acc-summary">
+                <div><dt>In your care</dt><dd>@InCare.Count()</dd></div>
+                <div><dt>Returned</dt><dd>@_docs.Count(d => d.IsReturned)</dd></div>
+                <div><dt>Property items</dt><dd>@ItemCount</dd></div>
+            </dl>
+        </div>
+
+        <div class="chip-row" aria-label="Filter documents">
+            @foreach (var f in Filters)
+            {
+                <button type="button" class="chip" aria-pressed="@(_filter == f.Key ? "true" : "false")" @onclick="() => _filter = f.Key">
+                    @f.Label <span class="acc-chip-count">@Count(f.Key)</span>
+                </button>
+            }
+        </div>
+
+        @if (_docs.Count == 0 && _unfiled.Count == 0)
+        {
+            <div class="empty-state">
+                <i class="bi bi-folder2-open" aria-hidden="true"></i>
+                <h2>No documents yet</h2>
+                <p>AMS hasn't filed a PAR, ICS or Return Slip under your name.</p>
+            </div>
+        }
+        else if (!Visible.Any())
+        {
+            <div class="empty-state"><i class="bi bi-funnel" aria-hidden="true"></i><h2>Nothing here</h2><p>Choose another filter above.</p></div>
+        }
+        else
+        {
+            var visible = Visible.ToList();
+            var pickedHere = visible.Count(d => _picked.Contains(d.DocumentId));
+            <div class="acc-toolbar" role="toolbar" aria-label="Download documents">
+                <label class="acc-selall">
+                    <input class="form-check-input" type="checkbox" checked="@(pickedHere == visible.Count)"
+                           @onchange="e => PickAll(visible, e.Value is true)" />
+                    <span>Select all (@visible.Count)</span>
+                </label>
+                <span class="acc-picked" aria-live="polite">@(_picked.Count == 0 ? "Tick the documents you want to download" : $"{_picked.Count} selected")</span>
+                <span class="acc-toolbar-end">
+                    @if (_picked.Count > 0)
+                    {
+                        <button type="button" class="btn btn-link btn-sm" @onclick="() => _picked.Clear()">Clear</button>
+                        <a class="btn btn-primary btn-sm" href="@DownloadPickedUrl" download>
+                            <i class="bi bi-download me-1" aria-hidden="true"></i>Download @(_picked.Count == 1 ? "PDF" : $"{_picked.Count} PDFs (ZIP)")
+                        </a>
+                    }
+                    else
+                    {
+                        <button type="button" class="btn btn-primary btn-sm" disabled><i class="bi bi-download me-1" aria-hidden="true"></i>Download selected</button>
+                    }
+                    <button type="button" class="btn btn-outline-primary btn-sm" @onclick="LockAsync" title="Hide your accountability again"><i class="bi bi-lock me-1" aria-hidden="true"></i>Lock</button>
+                </span>
+            </div>
+            <div class="catalog-grid acc-grid">
+                @foreach (var d in visible)
+                {
+                    var picked = _picked.Contains(d.DocumentId);
+                    <article class="item-card acc-card @TypeCss(d) @(d.IsReturned ? "is-returned" : "") @(picked ? "is-picked" : "")" @key="d.DocumentId">
+                        <label class="acc-check" title="Select for download">
+                            <input class="form-check-input" type="checkbox" checked="@picked" aria-label="@($"Select {d.FileName}")"
+                                   @onchange="e => Pick(d.DocumentId, e.Value is true)" />
+                        </label>
+                        <button type="button" class="item-open" @onclick="() => OpenAsync(d)" aria-label="@($"View {TypeName(d.DocumentType)}, {d.FileName}")">
+                            <div class="item-media acc-media">
+                                <i class="bi @TypeIcon(d.DocumentType)" aria-hidden="true"></i>
+                                <span class="acc-type">@d.DocumentType</span>
+                                @if (d.IsReturned)
+                                {
+                                    <span class="acc-flag is-returned"><i class="bi bi-arrow-return-left" aria-hidden="true"></i>Returned</span>
+                                }
+                                else if (!d.IsReturnSlip)
+                                {
+                                    <span class="acc-flag"><i class="bi bi-person-check" aria-hidden="true"></i>In your care</span>
+                                }
+                            </div>
+                            <div class="item-body">
+                                <h3 class="item-name">@TypeName(d.DocumentType)</h3>
+                                <p class="item-specs" title="@d.FileName">@d.FileName</p>
+                                <p class="acc-prop">@d.PropertyType</p>
+                                @if (d.Equipment.Count > 0)
+                                {
+                                    <p class="acc-equip"><i class="bi bi-pc-display" aria-hidden="true"></i>@string.Join(", ", d.Equipment)</p>
+                                }
+                                @if (d.Items.Count > 0)
+                                {
+                                    <ul class="acc-items">
+                                        @foreach (var i in d.Items.Take(3))
+                                        {
+                                            <li><span>@i.Description</span><b>@i.Quantity</b></li>
+                                        }
+                                        @if (d.Items.Count > 3) { <li class="acc-more">+ @(d.Items.Count - 3) more</li> }
+                                    </ul>
+                                }
+                                <dl class="acc-dates">
+                                    <div><dt>Signed</dt><dd>@(d.DateSigned?.ToString("MMM d, yyyy") ?? "Not recorded")</dd></div>
+                                    @if (d.IsReturned)
+                                    {
+                                        <div><dt>Returned</dt><dd>@d.ReturnedOn!.Value.ToString("MMM d, yyyy")</dd></div>
+                                    }
+                                </dl>
+                            </div>
+                        </button>
+                        <div class="item-actions">
+                            <button type="button" class="btn btn-accent w-100" @onclick="() => OpenAsync(d)">
+                                <i class="bi bi-eye me-1" aria-hidden="true"></i>View document
+                            </button>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+
+        @if (_unfiled.Count > 0 && _filter is "all" or "care")
+        {
+            <section class="panel acc-unfiled">
+                <header class="panel-head">
+                    <h2>Other property under your name</h2>
+                    <span>In the property register, not yet linked to a document</span>
+                </header>
+                <div class="table-responsive">
+                    <table class="table acc-table mb-0">
+                        <thead><tr><th>Property no.</th><th>Description</th><th class="text-end">Qty</th><th>Status</th></tr></thead>
+                        <tbody>
+                            @foreach (var i in _unfiled)
+                            {
+                                <tr><td class="text-nowrap">@i.PropertyNo</td><td>@i.Description</td><td class="text-end">@i.Quantity</td><td>@i.Status</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        }
+    }
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "person")] public long? PersonParam { get; set; }
+
+    private List<AccountabilityOffice> _offices = [];
+    private List<PersonnelOption> _officeOptions = [];
+    private List<PersonnelOption> _people = [];
+    private uint? _officeId;
+    private uint? _personId;
+    private List<AccountabilityDocument>? _docs;
+    private List<AccountabilityItem> _unfiled = [];
+    private string _filter = "all";
+    private bool _error;
+
+    // Birthday check
+    private BirthdayStatus? _status;
+    private string? _pass;              // set once the birthday matches, the PDF links use it
+    private DateTime? _bday;
+    private DateOnly? _confirming;      // first time: the birthday waiting to be confirmed
+    private bool _iAmPerson, _busy;
+    private string? _gateError;
+    private Timer? _lockTimer;
+    private readonly HashSet<uint> _picked = [];
+
+    private static DateOnly Today => DateOnly.FromDateTime(DateTime.UtcNow.AddHours(8));
+    private static int MinutesLeft(DateTime? untilUtc) =>
+        untilUtc is { } u ? Math.Max(1, (int)Math.Ceiling((u - DateTime.UtcNow).TotalMinutes)) : 0;
+
+    private string DownloadPickedUrl => _picked.Count == 1
+        ? $"/accountability/documents/{_picked.First()}?t={Uri.EscapeDataString(_pass ?? "")}&download=true"
+        : $"/accountability/documents/zip?t={Uri.EscapeDataString(_pass ?? "")}&ids={string.Join(",", _picked.Order())}";
+
+    private AccountabilityOffice? _office => _offices.FirstOrDefault(o => o.OfficeId == _officeId);
+    private PersonnelOption? _person => _people.FirstOrDefault(p => p.Id == _personId);
+
+    private static readonly (string Key, string Label)[] Filters =
+        [("all", "All"), ("care", "In your care"), ("PAR", "PAR"), ("ICS", "ICS"), ("Return Slip", "Return Slips"), ("returned", "Returned")];
+
+    private IEnumerable<AccountabilityDocument> InCare => (_docs ?? []).Where(d => !d.IsReturnSlip && !d.IsReturned);
+    private int ItemCount => InCare.Sum(d => d.Units) + _unfiled.Sum(i => i.Quantity);
+
+    private IEnumerable<AccountabilityDocument> Visible => Match(_filter);
+    private int Count(string key) => Match(key).Count();
+    private IEnumerable<AccountabilityDocument> Match(string key) => (_docs ?? []).Where(d => key switch
+    {
+        "all" => true,
+        "care" => !d.IsReturnSlip && !d.IsReturned,
+        "returned" => d.IsReturned,
+        _ => d.DocumentType == key,
+    });
+
+    public static string TypeName(string type) => type switch
+    {
+        "PAR" => "Property Acknowledgement Receipt",
+        "ICS" => "Inventory Custodian Slip",
+        "Return Slip" => "Return Slip",
+        _ => type,
+    };
+    public static string TypeIcon(string type) => type switch
+    {
+        "PAR" => "bi-file-earmark-check",
+        "ICS" => "bi-file-earmark-text",
+        _ => "bi-arrow-return-left",
+    };
+    private static string TypeCss(AccountabilityDocument d) => d.DocumentType switch
+    {
+        "PAR" => "is-par",
+        "ICS" => "is-ics",
+        _ => "is-slip",
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _offices = await Queries.OfficesAsync();
+            _officeOptions = _offices.Select(o => new PersonnelOption(o.OfficeId, o.Acronym, o.Name)).ToList();
+            if (PersonParam is > 0 and <= uint.MaxValue && await Queries.OfficeOfAsync((uint)PersonParam) is { } office)
+            {
+                _officeId = office;
+                _people = await Queries.PeopleAsync(office);
+                _personId = (uint)PersonParam;
+                await RefreshStatusAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "My accountability page failed to load");
+            _error = true;
+        }
+    }
+
+    private async Task OnOfficeChangedAsync(string value)
+    {
+        _officeId = uint.TryParse(value, out var id) ? id : null;
+        _personId = null;
+        Lock();
+        _people = _officeId is { } o ? await Queries.PeopleAsync(o) : [];
+        Nav.NavigateTo("/my-accountability", replace: true);
+    }
+
+    private async Task OnPersonChangedAsync(string value)
+    {
+        _personId = uint.TryParse(value, out var id) ? id : null;
+        Lock();
+        _filter = "all";
+        // I keep the person in the address, but the birthday is still asked every time.
+        Nav.NavigateTo(_personId is null ? "/my-accountability" : $"/my-accountability?person={_personId}", replace: true);
+        await RefreshStatusAsync();
+    }
+
+    // Birthday check
+
+    private async Task RefreshStatusAsync()
+    {
+        _status = null;
+        _gateError = null;
+        if (_personId is not { } person) return;
+        try { _status = await Gate.StatusAsync(person); }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Birthday status of personnel {Id} failed to load", person);
+            _error = true;
+        }
+    }
+
+    private async Task VerifyAsync()
+    {
+        if (_personId is not { } person || _bday is not { } picked || _busy) return;
+        var bday = DateOnly.FromDateTime(picked);
+        _busy = true;
+        _gateError = null;
+        try
+        {
+            var result = await Gate.VerifyAsync(person, bday);
+            switch (result.Check)
+            {
+                case BirthdayCheck.Ok:
+                    await UnlockAsync(person);
+                    break;
+                case BirthdayCheck.Wrong:
+                    _bday = null;
+                    _gateError = result.TriesLeft == 1
+                        ? "That birthday doesn't match. You have 1 more try before it's locked for 15 minutes."
+                        : $"That birthday doesn't match. {result.TriesLeft} tries left.";
+                    break;
+                case BirthdayCheck.Locked:
+                    _bday = null;
+                    _status = new BirthdayStatus(true, result.LockedUntilUtc);
+                    break;
+                default:
+                    await RefreshStatusAsync();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Birthday check of personnel {Id} failed", person);
+            _gateError = "Something went wrong. Check your connection and try again.";
+        }
+        finally { _busy = false; }
+    }
+
+    private void NextFirstTime()
+    {
+        _gateError = null;
+        if (_bday is not { } picked) return;
+        var bday = DateOnly.FromDateTime(picked);
+        if (bday < BirthdayHash.Earliest(Today) || bday > BirthdayHash.Latest(Today))
+        {
+            _gateError = "Check the year of your birthday.";
+            return;
+        }
+        _confirming = bday;
+        _iAmPerson = false;
+    }
+
+    private async Task SaveFirstTimeAsync()
+    {
+        if (_personId is not { } person || _confirming is not { } bday || !_iAmPerson || _busy) return;
+        _busy = true;
+        _gateError = null;
+        try
+        {
+            if (await Gate.SetFirstTimeAsync(person, bday))
+            {
+                await UnlockAsync(person);
+            }
+            else
+            {
+                // Someone saved it just now, so I ask for the birthday instead
+                _confirming = null;
+                _bday = null;
+                await RefreshStatusAsync();
+                _gateError = "A birthday was already saved for this name. Enter it below, or contact AMS if it wasn't you.";
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Saving the birthday of personnel {Id} failed", person);
+            _gateError = "The birthday couldn't be saved. Check your connection and try again.";
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task UnlockAsync(uint person)
+    {
+        _pass = Gate.IssuePass(person);
+        _bday = null;
+        _confirming = null;
+        _gateError = null;
+        // I lock the page again when the pass runs out, so a page left open doesn't stay visible
+        _lockTimer?.Dispose();
+        _lockTimer = new Timer(_ => InvokeAsync(async () => { Lock(); await RefreshStatusAsync(); StateHasChanged(); }),
+            null, BirthdayGate.PassLifetime - TimeSpan.FromSeconds(30), Timeout.InfiniteTimeSpan);
+        await LoadAsync();
+    }
+
+    private async Task LockAsync()
+    {
+        Lock();
+        await RefreshStatusAsync();
+    }
+
+    private void Lock()
+    {
+        _pass = null;
+        _docs = null;
+        _unfiled = [];
+        _picked.Clear();
+        _bday = null;
+        _confirming = null;
+        _gateError = null;
+        _lockTimer?.Dispose();
+        _lockTimer = null;
+    }
+
+    private void Pick(uint id, bool on)
+    {
+        if (on) _picked.Add(id); else _picked.Remove(id);
+    }
+
+    private void PickAll(List<AccountabilityDocument> docs, bool on)
+    {
+        foreach (var d in docs) Pick(d.DocumentId, on);
+    }
+
+    public void Dispose() => _lockTimer?.Dispose();
+
+    private async Task LoadAsync()
+    {
+        if (_personId is not { } person) return;
+        try
+        {
+            (_docs, _unfiled) = await Queries.ForPersonAsync(person);
+        }
+        catch (Exception ex)
+        {
+            Log.LogError(ex, "Accountability of personnel {Id} failed to load", person);
+            _error = true;
+        }
+    }
+
+    private Task OpenAsync(AccountabilityDocument d) =>
+        Modal.ShowComponentAsync<DocumentViewer>($"{TypeName(d.DocumentType)} ({d.DocumentType})",
+            new() { ["Document"] = d, ["PersonName"] = _person?.FullName, ["Pass"] = _pass }, ModalSize.ExtraLarge);
+}

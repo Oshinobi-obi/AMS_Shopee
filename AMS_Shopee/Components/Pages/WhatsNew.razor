@@ -2,12 +2,13 @@
 @using AMS_Shopee.Services.Ui
 @inject IJSRuntime JS
 
-<PageTitle>What's new | AMS</PageTitle>
+<PageTitle>What's new | e-SRS</PageTitle>
 
 <section class="page-head">
+    <SeasonDecor />
     <div class="container-xl">
         <h1>What's new</h1>
-        <p>Every update to AMS Supplies, from the first version to the latest fixes. Version @Changelog.LatestVersion is the current one.</p>
+        <p>Every update to e-SRS, from the first version to the latest fixes. Version @Changelog.LatestVersion is the current one.</p>
     </div>
 </section>
 
@@ -67,7 +68,7 @@
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (!firstRender) return;
-        // Remember that this version was seen, so the gold dot in the top bar goes away.
-        try { await JS.InvokeVoidAsync("amsWhatsNew.markSeen", Changelog.LatestVersion); } catch { /* prerendering or closed */ }
+        // I save that this version was seen, so the gold dot in the top bar goes away.
+        try { await JS.InvokeVoidAsync("amsWhatsNew.markSeen", Changelog.LatestVersion); } catch { /* still loading or already closed */ }
     }
 }

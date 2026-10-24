@@ -1,21 +1,19 @@
--- =====================================================================
--- ams_stockwatch :: 002 — SAMPLE DATA for development and testing
--- Run in MySQL Workbench AFTER 001. Safe to run twice (INSERT IGNORE).
--- Prices and quantities are illustrative only; replace with real data
--- from AMS before going live.
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 002: SAMPLE DATA for development and testing
+-- Run in MySQL Workbench AFTER 001. It's safe to run twice (INSERT IGNORE).
+-- The prices and quantities are only examples. Replace them with the real
+-- data from AMS before going live.
 --
--- Office logins created here:
---   username = office acronym in lowercase (ord, oard, legal, ictu, clmd-lrms, ...)
---   password = Supply@2026   (flagged "must change" for first login)
--- =====================================================================
+-- Office logins made here:
+--   username = office acronym in small letters (ord, oard, legal, ictu, clmd-lrms, ...)
+--   password = Supply@2026   (they have to change it on first login)
+-- -------------------------------------------------------------------
 
 USE ams_stockwatch;
 SET NAMES utf8mb4;
-SET @fy := YEAR(CURDATE());   -- APP-CSE year = current year
+SET @fy := YEAR(CURDATE());   -- APP-CSE year = this year
 
--- ---------------------------------------------------------------------
--- Categories (icon = Bootstrap Icons class shown on cards without photos)
--- ---------------------------------------------------------------------
+-- Categories (icon is the Bootstrap Icons class shown on cards without a photo)
 INSERT IGNORE INTO item_categories (category_name, icon, sort_order) VALUES
  ('Paper products',        'bi-file-earmark-text', 1),
  ('Writing instruments',   'bi-pen',               2),
@@ -26,12 +24,10 @@ INSERT IGNORE INTO item_categories (category_name, icon, sort_order) VALUES
 
 INSERT IGNORE INTO suppliers (supplier_name) VALUES ('Procurement Service - DBM (PS-DBM)');
 
--- ---------------------------------------------------------------------
--- Items. Stock levels are chosen so every badge colour appears:
--- green = above reorder level, yellow = at/below reorder level, red = 0.
--- sample_alloc = APP-CSE quantity given to EVERY office for this item
--- (0 = not in anyone's APP-CSE, to test the "Not in your APP-CSE" message).
--- ---------------------------------------------------------------------
+-- Items. I picked stock levels so every badge color shows up:
+-- green = above the reorder level, yellow = at or below it, red = 0.
+-- sample_alloc = the APP-CSE quantity given to EVERY office for this item
+-- (0 means nobody has it, so I can test the "Not in your APP-CSE" message).
 DROP TEMPORARY TABLE IF EXISTS seed_items;
 CREATE TEMPORARY TABLE seed_items (
   stock_no VARCHAR(30), item_name VARCHAR(200), specifications TEXT, unit_of_measure VARCHAR(30),
@@ -66,7 +62,7 @@ SELECT s.stock_no, s.item_name, s.specifications, s.unit_of_measure, c.category_
   FROM seed_items s
   JOIN item_categories c ON c.category_name = s.category;
 
--- Opening balances in the stock ledger (only for items that have none yet)
+-- Starting balances in the stock ledger (only for items that don't have one yet)
 INSERT INTO stock_movements (item_id, movement_type, quantity, balance_after, unit_cost,
                              reference_type, reference_no, remarks, performed_by)
 SELECT i.item_id, 'OPENING', i.stock_on_hand, i.stock_on_hand, i.unit_price,
@@ -77,9 +73,7 @@ SELECT i.item_id, 'OPENING', i.stock_on_hand, i.stock_on_hand, i.unit_price,
  WHERE i.stock_on_hand > 0
    AND NOT EXISTS (SELECT 1 FROM stock_movements m WHERE m.item_id = i.item_id);
 
--- ---------------------------------------------------------------------
--- APP-CSE allocations: every requisitioning office x every allocated item
--- ---------------------------------------------------------------------
+-- APP-CSE allocations: every requisitioning office times every allocated item
 INSERT IGNORE INTO app_cse_allocations (office_id, item_id, fiscal_year, allocated_qty,
                                         q1_qty, q2_qty, q3_qty, q4_qty)
 SELECT o.office_id, i.item_id, @fy, s.sample_alloc,
@@ -91,9 +85,9 @@ SELECT o.office_id, i.item_id, @fy, s.sample_alloc,
  WHERE o.can_requisition = 1
    AND s.sample_alloc > 0;
 
--- A few realistic situations to test the quota banner:
---   ORD has already been issued 20 of its 50 black ballpens  → Remaining 30
---   ICTU has used up all 50 black ballpens                   → Remaining 0
+-- A few real situations to test the quota banner:
+--   ORD was already issued 20 of its 50 black ballpens, so Remaining is 30
+--   ICTU used up all 50 black ballpens, so Remaining is 0
 UPDATE app_cse_allocations a
   JOIN offices o      ON o.office_id = a.office_id
   JOIN supply_items i ON i.item_id   = a.item_id
@@ -106,10 +100,8 @@ UPDATE app_cse_allocations a
    SET a.issued_qty = a.allocated_qty
  WHERE o.office_acronym = 'ICTU' AND i.stock_no = 'SN-0101' AND a.fiscal_year = @fy AND a.issued_qty = 0;
 
--- ---------------------------------------------------------------------
--- One login per requisitioning office (AMS keeps using its admin account)
+-- One login for each requisitioning office (AMS keeps using its admin account)
 -- Password: Supply@2026  (bcrypt, cost 12)
--- ---------------------------------------------------------------------
 INSERT IGNORE INTO users (username, email, full_name, display_name, password_hash,
                           role, office_id, require_password_change)
 SELECT LOWER(o.office_acronym),

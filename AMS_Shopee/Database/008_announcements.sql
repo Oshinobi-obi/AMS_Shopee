@@ -1,9 +1,9 @@
--- =====================================================================
--- ams_stockwatch :: 008 — ANNOUNCEMENTS
--- Notices AMS posts in StockWatch; shown as a banner on AMS Supplies
--- between their start and end date. Safe to run again.
--- On MonsterASP: run it inside db64557 (no USE line needed).
--- =====================================================================
+-- -------------------------------------------------------------------
+-- ams_stockwatch, 008: ANNOUNCEMENTS
+-- Notices AMS posts in e-PINS. e-SRS shows them as a banner
+-- between the start and end date. Safe to run again.
+-- On MonsterASP run it inside db64557 (no USE line needed).
+-- -------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS announcements (
   announcement_id INT UNSIGNED  NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   message         VARCHAR(1000) NOT NULL,
   level           VARCHAR(10)   NOT NULL DEFAULT 'info',
   starts_at       DATETIME      NOT NULL,                -- Philippine time, set by the app
-  ends_at         DATETIME      NULL,                    -- NULL = until turned off
+  ends_at         DATETIME      NULL,                    -- NULL means until it's turned off
   is_active       TINYINT(1)    NOT NULL DEFAULT 1,
   created_by      INT UNSIGNED  NULL,
   created_at      DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
