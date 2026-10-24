@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/banner.svg" width="100%" alt="AMS Supplies: supply requisitions for DepEd NCR offices">
+  <img src="docs/banner.svg" width="100%" alt="e-SRS: supply requisitions for DepEd NCR offices">
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 <p align="center">
   <a href="https://assetshop.runasp.net">Live site</a> ·
-  <a href="https://github.com/Oshinobi-obi/AMS_Storage_and_Report_System">AMS StockWatch (admin side)</a> ·
+  <a href="https://github.com/Oshinobi-obi/AMS_Storage_and_Report_System">e-PINS (admin side)</a> ·
   <a href="#getting-started">Run it locally</a>
 </p>
 
@@ -74,7 +74,7 @@
 ```mermaid
 flowchart LR
     A["🛒 Office adds items<br/>(within its APP-CSE)"] --> B["📝 Submit RIS"]
-    B -->|Pending approval| C{"AMS reviews<br/>in StockWatch"}
+    B -->|Pending approval| C{"AMS reviews<br/>in e-PINS"}
     C -->|"Reject, with a reason"| R["Office sees the reason<br/>and can resubmit"]
     C -->|"Approve: APP-CSE used,<br/>stock reserved"| D["🖨️ Office prints the RIS,<br/>signs, picks up the items"]
     D --> E["✍️ AMS signs, scans the slip,<br/>marks it Issued (stock deducted)"]
@@ -143,7 +143,7 @@ dotnet user-secrets set "ConnectionStrings:Default" "server=localhost;port=3306;
 ```bash
 dotnet run
 ```
-Office accounts are created by AMS in **AMS StockWatch → Accounts**. Each one must choose its own password at its first sign-in.
+Office accounts are created by AMS in **e-PINS → Accounts**. Each one must choose its own password at its first sign-in.
 
 ## Configuration
 
@@ -152,7 +152,7 @@ Office accounts are created by AMS in **AMS StockWatch → Accounts**. Each one 
 | `ConnectionStrings:Default` | User Secrets (dev) / `appsettings.Production.json` (server) | MySQL connection |
 | `https_port` | `appsettings.Production.json` | Redirects `http://` visitors to HTTPS (usually `443`) |
 | `Auth:AllowHttpCookies` | `appsettings.Production.json` | **Temporary** switch for a server without SSL. Keep it off |
-| Entity Name, Fund Cluster, signatories | AMS StockWatch → **Settings** | Printed on every RIS |
+| Entity Name, Fund Cluster, signatories | e-PINS → **Settings** | Printed on every RIS |
 
 `appsettings.Production.json`, `App_Data/`, logs and database dumps are excluded by `.gitignore`.
 
@@ -168,7 +168,7 @@ Office accounts are created by AMS in **AMS StockWatch → Accounts**. Each one 
 * HTTPS-only cookies, security headers, offices can only open their own requisitions and PDFs.
 
 ## Related
-* **[AMS StockWatch](https://github.com/Oshinobi-obi/AMS_Storage_and_Report_System)**, the admin side: approvals, inventory, catalog, APP-CSE upload, reports.
+* **[e-PINS](https://github.com/Oshinobi-obi/AMS_Storage_and_Report_System)**, the admin side: approvals, inventory, catalog, APP-CSE upload, reports.
 
 ---
 
